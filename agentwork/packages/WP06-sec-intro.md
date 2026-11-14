@@ -14,20 +14,20 @@ owns:
   - draft/sections/01-introduction.md
 locked_tests: []
 done_when:
-  - python3 tools/check_section.py draft/sections/01-introduction.md --must "Terminology" --must "BCP 14" --must "VXLAN" --must "Open Issue" --must "No-ACK" --must "RCS" --must "8.4.1"
+  - python3 tools/check_section.py draft/sections/01-introduction.md --must "Terminology" --must "BCP 14" --must "VXLAN" --must "Open Issue" --must "No-ACK" --must "RCS" --must "8.4.1" --must "Out-of-Order No-ACK"
 review_required: false
 ---
 # WP06 — Draft section 1: Introduction, Terminology, Relationship to SCHC
 
 Tier: plan
-Verify: python3 tools/check_section.py draft/sections/01-introduction.md --must "Terminology" --must "BCP 14" --must "VXLAN" --must "Open Issue" --must "No-ACK" --must "RCS" --must "8.4.1"
+Verify: python3 tools/check_section.py draft/sections/01-introduction.md --must "Terminology" --must "BCP 14" --must "VXLAN" --must "Open Issue" --must "No-ACK" --must "RCS" --must "8.4.1" --must "Out-of-Order No-ACK"
 
 Write the framing section in kramdown-rfc markdown. Keep it short: the draft is a short first version.
 
 ## Deliverables
 
 1. `01-introduction.md`: `# Introduction` (problem, requirements, non-goals incl. no ACK/retransmit, no inter-frame ordering across ordinary/fragmented paths), `# Terminology` (BCP 14 boilerplate text and a definitions list: VTEP, PMTU, slice, Frame ID, RCS, Δ, L, peer association), and `# Placement and Interoperability` (DESIGN "Placement and interoperability", incl. unicast scope, ingress replication, drop-and-count behavior, port-selection of the format, same source port for all fragments, and the short NAT note from DESIGN). Mark the provisional-wire-value status.
-2. In the same file, `# Relationship to SCHC` covering the No-ACK in-order assumption of RFC 8724 §8.4.1, the candidate new mode, the mapping of RuleID/Frame ID/index/RCS to SCHC terms (as a table, marking each mapping that DESIGN lists under "Items to settle" as Open Issue), no RFC 8724 wire compatibility, and header compression out of scope.
+2. In the same file, `# Relationship to SCHC` covering the No-ACK in-order assumption of RFC 8724 §8.4.1, the new mode named Out-of-Order No-ACK (a new mode defined by its three differences from No-ACK listed in DESIGN, not an extension), the mapping of RuleID/Frame ID/index/RCS to SCHC terms (as a table, marking each mapping that DESIGN lists under "Items to settle" as Open Issue), no RFC 8724 wire compatibility, and header compression out of scope.
 
 ## Owns (touch only these)
 

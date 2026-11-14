@@ -1,6 +1,6 @@
 # FROZEN DESIGN — SCHC VXLAN Fragmentation Internet-Draft
 
-- Deliverable: individual Internet-Draft `draft-vladyka-schc-vxlan-fragmentation-00`, for presentation to the IETF SCHC WG.
+- Deliverable: individual Internet-Draft `draft-vladyka-schc-vxlan-fragmentation-00`, intended status Standards Track, for presentation to the IETF SCHC WG.
 - Authors: Andrii Vladyka (andrii.vladyka@gmail.com), Alexander Pelov (alexander.pelov@imt-atlantique.fr).
 - Companion deliverable: a small Python reference model (`src/schcvx/`) whose tests pin every number and example used in the draft. No throughput claims anywhere.
 - Authority rule: everything below the line is the authoritative technical input. Wire values are provisional prototype choices. The "Items to settle" section lists OPEN decisions: the draft must mark them explicitly as open and must not resolve them. Unspecified behavior is not permission to invent.
@@ -16,6 +16,7 @@
 - PMTU is a per-peer, per-direction configuration, not tied to 1500.
 - Frame ID stays 8 bytes; its width is an open item. The draft is to be short.
 - RuleID moves to byte 0 (VNI to bytes 1-3) and is configured per peer association, 0 in the prototype, so the format can later sit behind a shared SCHC UDP port. The port stays locally configured in this version. NAT consequences are stated; NAT is outside the target deployment.
+- The mode is named Out-of-Order No-ACK. The draft is Standards Track.
 - Design review: keep ascending index plus count rather than an FCN (rationale in "Relationship to SCHC"); expiry is decided by arrival timestamp, with `t >= expiry` expired; zero UDP checksums are dropped; the source port is derived as for VXLAN; the receiver's maximum slice length is a local bound.
 
 ---
@@ -46,7 +47,7 @@ NAT is outside the target deployment, with these consequences where one is prese
 
 ## Relationship to SCHC
 
-RFC 8724 Section 8.4.1 No-ACK assumes in-order fragment delivery and concludes reassembly on All-1. The indexed receiver below can accept the final fragment first and wait for missing indices. Treat this as a **candidate new SCHC fragmentation mode** with a UDP/Ethernet binding, pending working-group agreement on how it integrates with the SCHC framework. The trailer below plays the role of a reassembly check sequence (RCS). The prototype wire format is provisional and has no RFC 8724 wire compatibility. A deployment with a genuine in-order guarantee could instead specify a separate RFC 8724 No-ACK profile. Header compression is outside this draft's scope.
+RFC 8724 Section 8.4.1 No-ACK assumes in-order fragment delivery and concludes reassembly on All-1. The indexed receiver below can accept the final fragment first and wait for missing indices. The draft defines this as a new SCHC fragmentation mode named **Out-of-Order No-ACK**, with a UDP/Ethernet binding. It is a new mode defined by its differences from No-ACK, not an extension of No-ACK. How it integrates with the SCHC framework is pending working-group agreement. The trailer below plays the role of a reassembly check sequence (RCS). The prototype wire format is provisional and has no RFC 8724 wire compatibility. A deployment with a genuine in-order guarantee could instead specify a separate RFC 8724 No-ACK profile. Header compression is outside this draft's scope.
 
 The mode differs from RFC 8724 No-ACK in three ways, which the draft states explicitly:
 
@@ -117,7 +118,7 @@ Start with a configured maximum of two fragments, valid where the minimum config
 
 ## Items to settle in the Internet-Draft
 
-1. Confirm the SCHC mode extension and identify how RuleID, frame identification, fragment indexing, and RCS map to SCHC terminology and architecture. Keep the tunnel binding explicit even if the generic mode and binding appear in the same document.
+1. Confirm with the working group the Out-of-Order No-ACK mode and identify how RuleID, frame identification, fragment indexing, and RCS map to SCHC terminology and architecture. Keep the tunnel binding explicit even if the generic mode and binding appear in the same document.
 2. Specify final header versioning, UDP demultiplexing and any eventual IANA request. Use a locally configured port in the prototype. The SCHC UDP port of draft-ietf-schc-protocol-numbers is the intended candidate once assigned; that draft has no assigned value yet and does not define the UDP payload layout, so sharing it is open, as is the allocation of RuleID values on a shared port. Identify the need for peer capability provisioning before sending oversized frames.
 3. Specify the default operational profile, the Frame ID width (8 bytes is a prototype choice kept for alignment), the bounds on configured frame sizes and fragment counts, the meanings and configuration of Δ and L, the deadline equality rule (the prototype treats `t >= expiry` as expired), and the restart procedure.
 4. Include Security Considerations for peer and VNI admission, spoofing, state exhaustion, replay, and the use of an authenticated underlay if required by the deployment. CRC and UDP checksums detect corruption. They provide no peer authentication.

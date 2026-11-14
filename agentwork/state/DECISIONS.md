@@ -20,3 +20,8 @@ Append decisions using `python3 agentwork/pipeline.py decide --title "<Title>" -
 - Index plus count kept instead of an FCN; expiry decided by arrival timestamp (`t >= expiry` expired); zero UDP checksums dropped; source port derived as for VXLAN.
 - RuleID moved to byte 0 (VNI bytes 1-3), configured per peer, 0 in the prototype.
 - UDP port stays locally configured; the SCHC port of draft-ietf-schc-protocol-numbers is the candidate once assigned (open item). NAT is outside the target deployment.
+
+## 2026-11-14: Mode name and category
+
+- The mode is named Out-of-Order No-ACK, a new mode, not an extension of No-ACK.
+- The draft is Standards Track (`category: std`).
