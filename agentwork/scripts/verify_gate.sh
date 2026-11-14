@@ -318,11 +318,11 @@ VERIFY_CMDS=()
 VERIFY_LINE="$(sed -n 's/^Verify:[[:space:]]*//p' "$TASK_FILE" | head -n1 || true)"
 [ -n "$VERIFY_LINE" ] && VERIFY_CMDS+=("$VERIFY_LINE")
 
-while IFS= read -r dw; do
-  if [ -n "$dw" ] && [ "$dw" != "$VERIFY_LINE" ]; then
-    VERIFY_CMDS+=("$dw")
-  fi
-done < <("$PYTHON_BIN" - "$TASK_FILE" <<'EOF'
+# Use plain command substitution into a variable, not `done < <(... <<EOF)`.
+# macOS's default bash (3.2.57) has long-standing bugs parsing a heredoc
+# nested inside a <(...) process substitution ("bad substitution: no
+# closing ')'"), independent of the heredoc's content.
+DW_RAW="$("$PYTHON_BIN" - "$TASK_FILE" <<'EOF'
 import sys, re
 content = open(sys.argv[1], "r", encoding="utf-8").read()
 in_dw = False
@@ -334,9 +334,9 @@ for line in content.splitlines():
     if in_dw:
         if s.startswith("-"):
             v = s.lstrip("-").strip()
-            # Only strip a genuine wrapping quote pair, never a quote that's
-            # merely the last character of an unrelated trailing token such
-            # as a quoted --must argument.
+            # Only strip a genuine wrapping quote pair, never a quote that
+            # is merely the last character of an unrelated trailing token
+            # such as a quoted --must argument.
             dq, sq = chr(34), chr(39)
             if len(v) >= 2 and v[0] == v[-1] and v[0] in (dq, sq):
                 v = v[1:-1]
@@ -344,7 +344,13 @@ for line in content.splitlines():
         elif line and not line.startswith(" "):
             in_dw = False
 EOF
-)
+)"
+
+while IFS= read -r dw; do
+  if [ -n "$dw" ] && [ "$dw" != "$VERIFY_LINE" ]; then
+    VERIFY_CMDS+=("$dw")
+  fi
+done <<< "$DW_RAW"
 
 if [ "${#VERIFY_CMDS[@]}" -eq 0 ]; then
   echo "GATE FAIL: Task '$TASK_ID' has no 'Verify:' line or 'done_when:' commands." >&2
