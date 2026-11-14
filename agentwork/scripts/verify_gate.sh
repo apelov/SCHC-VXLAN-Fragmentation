@@ -333,7 +333,13 @@ for line in content.splitlines():
         continue
     if in_dw:
         if s.startswith("-"):
-            print(s.lstrip("-").strip().strip('"').strip("'"))
+            v = s.lstrip("-").strip()
+            # Only strip a genuine wrapping quote pair (e.g. - "cmd"), never a
+            # quote that's merely the last character of an unrelated trailing
+            # token (e.g. ... --must "Out-of-Order No-ACK").
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in ("'", '"'):
+                v = v[1:-1]
+            print(v)
         elif line and not line.startswith(" "):
             in_dw = False
 EOF
