@@ -4,3 +4,13 @@ This file records durable architectural decisions made for the project.
 Append decisions using `python3 agentwork/pipeline.py decide --title "<Title>" --text "<Summary>"`.
 
 ---
+
+## 2026-11-14: Short first version — wire format revisions
+
+- CRC-32C RCS kept (it is the SCHC integrity check, RFC 8724 §8.2.3/§8.4.1).
+- Original-frame-length field removed; header is 14 bytes (VNI 3, RuleID 1, Frame ID 8, index 1, count 1).
+- RuleID stays one byte (value 0) for alignment.
+- PMTU is a per-peer, per-direction sender configuration, no default; 1500 only in examples.
+- Frame ID stays 8 bytes; width is an open item.
+- Slice budgets 1454 (IPv4) / 1434 (IPv6); a 1514-byte frame gives slices 1454 + 60, outer IP lengths 1496 / 106.
+- Draft has six sections (introduction, wire format, procedures, timing and profile, security/IANA, examples).
