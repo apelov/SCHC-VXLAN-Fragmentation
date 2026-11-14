@@ -30,7 +30,7 @@ Implements DESIGN "MTU and sender algorithm" over the WP01 codec.
 ## Deliverables
 
 1. `sender.py`: `vxlan_frame_budget(pmtu, h_ip)`, `slice_budget(pmtu, h_ip)` (C), `fragment_frame(frame, *, vni, frame_id, pmtu, h_ip, max_frame_len, max_fragments) -> list[bytes] | Drop` where the outcome is either the list of encoded datagram payloads in ascending index order or a `Drop(reason)` for: fits in plain VXLAN (return a distinct `Fits` result, not a drop), C<=0, frame length outside range, N outside 2..max_fragments. Slices are all C bytes except the last (remainder + RCS = CRC-32C of the original frame).
-2. Tests pin the DESIGN numbers: PMTU 1500 no options: standard VXLAN frame limits 1464 (IPv4, H_IP=20) and 1444 (IPv6, H_IP=40); slice budgets 1452 and 1432; a 1514-byte frame over IPv4 yields slices 1452 and 62 and outer IP lengths 1496 and 110. Also exact-fit and one-byte-over for IPv4/IPv6, tagged (1518-byte) frames, a change of PMTU between calls, and every emitted IP packet <= PMTU.
+2. Tests pin the DESIGN numbers: PMTU 1500 no options: standard VXLAN frame limits 1464 (IPv4, H_IP=20) and 1444 (IPv6, H_IP=40); slice budgets 1454 and 1434 (C = PMTU - H_IP - 8 - 14 - 4); a 1514-byte frame over IPv4 yields slices 1454 and 60 and outer IP lengths 1496 and 106. Also exact-fit and one-byte-over for IPv4/IPv6, tagged (1518-byte) frames, a change of PMTU between calls, and PMTU parametrization at 1280 (IPv6 minimum), 1500 and 9000 (including frames larger than 1514 and the rejection when the minimum PMTU cannot carry max_frame_len in max_fragments slices); no default PMTU exists in the code, and every emitted IP packet <= PMTU.
 
 ## Owns (touch only these)
 

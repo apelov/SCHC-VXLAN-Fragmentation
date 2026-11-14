@@ -31,7 +31,7 @@ Produces the two examples DESIGN requires: a last-fragment-first completion and 
 
 ## Deliverables
 
-1. `tools/gen_examples.py` prints and writes `draft/generated/examples.md` (fixed, deterministic content): Example A: 1514-byte frame over IPv4, PMTU 1500, two fragments (slices 1452 and 62, outer IP lengths 1496 and 110) delivered last-fragment-first with a stated clock, showing the bitmap after each datagram and the final CRC-32C; Example B: same frame, only the final fragment arrives, entry expires at first_rx+delta, then the missing fragment arrives late and is counted as `late`. Use a fixed illustrative frame (deterministic bytes), VNI, Frame ID, peer name, delta and L; show header fields in hex.
+1. `tools/gen_examples.py` prints and writes `draft/generated/examples.md` (fixed, deterministic content): Example A: 1514-byte frame over IPv4, PMTU 1500, two fragments (slices 1454 and 60, outer IP lengths 1496 and 106) delivered last-fragment-first with a stated clock, showing the bitmap after each datagram and the final CRC-32C; Example B: same frame, only the final fragment arrives, entry expires at first_rx+delta, then the missing fragment arrives late and is counted as `late`. Use a fixed illustrative frame (deterministic bytes), VNI, Frame ID, peer name, delta and L; show header fields in hex.
 2. Test that regenerating output matches the committed file byte for byte, and that the counters match the narrative.
 
 ## Owns (touch only these)

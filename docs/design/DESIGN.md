@@ -7,6 +7,16 @@
 
 ---
 
+
+## Revision notes (human decisions, 2026-11-14)
+
+- Keep CRC-32C RCS: it is the SCHC integrity check (RFC 8724 §8.2.3, §8.4.1) and guards against splicing slices of different frames, for example after a restart.
+- Drop the original-frame-length field. The receiver relies on the fragment count, equal-length nonfinal slices, the configured maximum frame length and the RCS. The header is 14 bytes.
+- RuleID stays one byte (value 0) to preserve alignment; a zero-bit RuleID is not used. RFC 8724 §6 leaves RuleID size to the Profile.
+- PMTU is a per-peer, per-direction configuration, not tied to 1500.
+- Frame ID stays 8 bytes; its width is an open item. The draft is to be short.
+
+---
 # Deadline-bounded Ethernet fragmentation for VXLAN deployments
 
 ## Drafting brief
@@ -45,8 +55,7 @@ The configured UDP destination port selects this format. All multibyte integers 
 | 4 | 8 | Frame ID, unique across active and recently retired frames within the configured peer association and VNI |
 | 12 | 1 | Fragment index, zero-based |
 | 13 | 1 | Fragment count, 2 through the configured maximum |
-| 14 | 2 | Original frame length in bytes, repeated in every fragment |
-| 16 | variable | Nonempty slice of the original frame |
+| 14 | variable | Nonempty slice of the original frame |
 | End of final fragment | 4 | RCS, present only if index equals count minus one |
 
 Use CRC-32C over the original frame bytes in wire order. For interoperability, specify the Castagnoli polynomial, reflected input/output, initial register and final XOR of 0xffffffff, the check value 0xe3069283 for ASCII `123456789`, and big-endian trailer serialization. Generate and verify the UDP checksum on all extension datagrams. The CRC checks reassembly integrity.
@@ -56,21 +65,22 @@ Use CRC-32C over the original frame bytes in wire order. For interoperability, s
 Use the underlay **IP** PMTU, excluding outer Ethernet overhead. Let `H_IP` include the actual outer IP header and any options or extension headers. Account for additional encapsulation if it consumes the same PMTU budget.
 
 * Ordinary VXLAN frame budget is `PMTU - H_IP - 8 (UDP) - 8 (VXLAN)`.
-* For the prototype use the same slice budget for every fragment, `C = PMTU - H_IP - 8 (UDP) - 16 (fragment header) - 4 (RCS allowance)`. This leaves four bytes unused in nonfinal datagrams and removes a sizing special case.
+* For the prototype use the same slice budget for every fragment, `C = PMTU - H_IP - 8 (UDP) - 14 (fragment header) - 4 (RCS allowance)`. This leaves four bytes unused in nonfinal datagrams and removes a sizing special case.
 * Compute `N = ceil(frame_length / C)` after validating `C > 0`. Reject frames outside the configured frame-length range or with `N` outside the configured range.
+* PMTU is a sender-side configuration value per peer and direction, with no default in this document; 1500 appears only in examples. The receiver does not need the sender's PMTU, so it must not assume a slice length. Reject a configuration in which the minimum PMTU cannot carry the maximum frame in the maximum number of fragments.
 * Snapshot the budget once per frame. Send contiguous slices in ascending index order, all `C` bytes except the final slice, which carries the remainder and RCS. Every outer IP datagram fits the budget. Use DF for IPv4 and omit IPv6 source fragmentation.
 * Start with a conservative static PMTU per peer/path. If dynamic discovery is specified, describe how the extension probes its own path, including ECMP and path changes. See RFC 8899.
 
-With a 1500-byte IP PMTU and no outer IP options or extensions, standard VXLAN carries a complete Ethernet frame of up to 1464 bytes over IPv4 or 1444 over IPv6. The corresponding untagged inner Ethernet payload limits are 1450 and 1430 bytes. The prototype slice budgets are 1452 and 1432 bytes, respectively. Over IPv4, a 1514-byte frame produces slices of 1452 and 62 bytes and outer IP lengths of 1496 and 110 bytes.
+With a 1500-byte IP PMTU and no outer IP options or extensions, standard VXLAN carries a complete Ethernet frame of up to 1464 bytes over IPv4 or 1444 over IPv6. The corresponding untagged inner Ethernet payload limits are 1450 and 1430 bytes. The prototype slice budgets are 1454 and 1434 bytes, respectively. Over IPv4, a 1514-byte frame produces slices of 1454 and 60 bytes and outer IP lengths of 1496 and 106 bytes.
 
 ## Receiver algorithm
 
 Key entries by configured peer association (including the local tunnel endpoint), VNI, RuleID, and Frame ID. A single worker or equivalent synchronization owns each entry. Use a local monotonic clock for admission, expiry, and delivery decisions.
 
-1. Before allocating, validate peer and VNI authorization, UDP checksum, RuleID, count and index bounds, original frame length, and that a nonempty slice remains after parsing the header and any required trailer. Cap incomplete entries and retained bytes per peer and globally.
+1. Before allocating, validate peer and VNI authorization, UDP checksum, RuleID, count and index bounds, that the slice length does not exceed the configured maximum slice length, and that a nonempty slice remains after parsing the header and any required trailer. Cap incomplete entries and retained bytes per peer and globally.
 2. Drop fragments for retired IDs. The first admissible fragment, of any index, opens an entry with `expiry = first_rx + Δ`. Use arrival timestamps from a consistent receive stage and enforce expiry before publishing a completed frame. Timer processing can be batched. Expired entries are ineligible for completion even if a timer sweep has yet to run.
-3. Require count and original frame length to match across the entry. Store one slice per index and update a bitmap and running byte count. Ignore identical duplicate fragments without extending expiry. A conflicting duplicate, inconsistent metadata, or a byte count exceeding the original length aborts and retires the entry.
-4. When the bitmap is complete, require the sum of slice lengths to equal the original length. Assemble slices in index order, verify the RCS, and deliver once if verification finishes before expiry. A full bitmask with invalid length or RCS aborts the entry.
+3. Require count to match across the entry, every nonfinal slice to have the same length, and the final slice to be no longer than a nonfinal slice. Store one slice per index and update a bitmap and running byte count. Ignore identical duplicate fragments without extending expiry. A conflicting duplicate, inconsistent metadata, or a byte count exceeding the configured maximum frame length aborts and retires the entry.
+4. When the bitmap is complete, require the sum of slice lengths to lie within the configured frame-length range. Assemble slices in index order, verify the RCS, and deliver once if verification finishes before expiry. A full bitmask with invalid length or RCS aborts the entry.
 5. On completion, abort, or timeout, retire the ID and release the buffers. A final fragment with holes stays pending until the holes fill or the deadline passes. Keep a bounded retirement record to suppress late fragments and duplicate delivery.
 
 Starting an entry from any index supports reordering. Consequently, never evict a retirement record while the deployment still allows fragments for that ID to arrive. For the first prototype, configure `L` as an upper bound on the arrival spread for all copies of fragments of a frame, including duplicates. Keep retirement records for `L` after retirement. Provision capacity for active and retired IDs at the admitted rate, or reserve a retirement slot at admission and stop admitting new IDs within an exhausted scope until space returns. Drops before admission create no deliverable state. Without a defensible bound, suppression via finite retention is best effort.
@@ -87,7 +97,7 @@ The first-arrival deadline bounds receiver-held reassembly time. An end-to-end f
 
 ## Fast path and acceptance checks
 
-Start with a configured maximum of two fragments for an Ethernet-1500 service. Validate that the minimum underlay PMTU can carry the maximum allowed frame in two pieces. Use a two-bit receive mask, bounded per-worker state, batched timer processing, and scatter/gather where the forwarding interface supports it. Keep ordinary VXLAN on its existing offload path where supported. Benchmark the integrity check and the fragmented forwarding path together.
+Start with a configured maximum of two fragments, valid where the minimum configured PMTU carries the maximum allowed frame in two slices (for example, an Ethernet-1500 service over a 1500-byte PMTU). Validate that the minimum underlay PMTU can carry the maximum allowed frame in two pieces. Use a two-bit receive mask, bounded per-worker state, batched timer processing, and scatter/gather where the forwarding interface supports it. Keep ordinary VXLAN on its existing offload path where supported. Benchmark the integrity check and the fragmented forwarding path together.
 
 * Check exact-fit and one-byte-over frame sizes for IPv4 and IPv6, including tagged Ethernet, and verify every emitted IP packet fits the PMTU.
 * Check both arrival orders, every single-fragment loss, identical and conflicting duplicates, malformed or inconsistent headers, bad RCS, deadline equality, late arrival after retirement, and ID uniqueness across restart.
@@ -99,7 +109,7 @@ Start with a configured maximum of two fragments for an Ethernet-1500 service. V
 
 1. Confirm the SCHC mode extension and identify how RuleID, frame identification, fragment indexing, and RCS map to SCHC terminology and architecture. Keep the tunnel binding explicit even if the generic mode and binding appear in the same document.
 2. Specify final header versioning, UDP demultiplexing and any eventual IANA request. Use a locally configured port in the prototype. Identify the need for peer capability provisioning before sending oversized frames.
-3. Specify the default operational profile, the bounds on configured frame sizes and fragment counts, the meanings and configuration of Δ and L, and the restart procedure.
+3. Specify the default operational profile, the Frame ID width (8 bytes is a prototype choice kept for alignment), the bounds on configured frame sizes and fragment counts, the meanings and configuration of Δ and L, and the restart procedure.
 4. Include Security Considerations for peer and VNI admission, spoofing, state exhaustion, replay, and the use of an authenticated underlay if required by the deployment. CRC and UDP checksums detect corruption. They provide no peer authentication.
 5. Include IANA Considerations, manageability, and examples showing a last-fragment-first completion and a deadline expiry. Leave throughput claims pending measurement.
 
