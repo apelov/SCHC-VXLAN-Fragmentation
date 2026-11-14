@@ -15,6 +15,7 @@
 - RuleID stays one byte (value 0) to preserve alignment; a zero-bit RuleID is not used. RFC 8724 §6 leaves RuleID size to the Profile.
 - PMTU is a per-peer, per-direction configuration, not tied to 1500.
 - Frame ID stays 8 bytes; its width is an open item. The draft is to be short.
+- RuleID moves to byte 0 (VNI to bytes 1-3) and is configured per peer association, 0 in the prototype, so the format can later sit behind a shared SCHC UDP port. The port stays locally configured in this version. NAT consequences are stated; NAT is outside the target deployment.
 - Design review: keep ascending index plus count rather than an FCN (rationale in "Relationship to SCHC"); expiry is decided by arrival timestamp, with `t >= expiry` expired; zero UDP checksums are dropped; the source port is derived as for VXLAN; the receiver's maximum slice length is a local bound.
 
 ---
@@ -41,6 +42,8 @@ Transmit placement is after bridge forwarding and before tunnel encapsulation. R
 
 The extension carries the semantics of the Ethernet overlay VNI but uses its own UDP payload format. It does not fragment an already encapsulated VXLAN packet at IP. Use the same source UDP port and outer five-tuple for every fragment of a frame to preserve ordinary flow-hash affinity. Derive the source port from the inner frame as the sender does for ordinary VXLAN (RFC 7348 Section 5). The receiver identifies a configured peer independently of the source UDP port. The protocol tolerates reorder even when path affinity fails.
 
+NAT is outside the target deployment, with these consequences where one is present: a rewritten source port does not matter; a rewritten outer source address must be the address configured for the peer association; and because the two directions do not form one symmetric flow, the destination port needs a static mapping.
+
 ## Relationship to SCHC
 
 RFC 8724 Section 8.4.1 No-ACK assumes in-order fragment delivery and concludes reassembly on All-1. The indexed receiver below can accept the final fragment first and wait for missing indices. Treat this as a **candidate new SCHC fragmentation mode** with a UDP/Ethernet binding, pending working-group agreement on how it integrates with the SCHC framework. The trailer below plays the role of a reassembly check sequence (RCS). The prototype wire format is provisional and has no RFC 8724 wire compatibility. A deployment with a genuine in-order guarantee could instead specify a separate RFC 8724 No-ACK profile. Header compression is outside this draft's scope.
@@ -53,12 +56,12 @@ The mode differs from RFC 8724 No-ACK in three ways, which the draft states expl
 
 ## Prototype wire format
 
-The configured UDP destination port selects this format. All multibyte integers use network byte order.
+The configured UDP destination port selects this format. All multibyte integers use network byte order. The RuleID comes first, as in other SCHC messages, so that the format can later share a SCHC UDP port with other SCHC uses and be selected by RuleID.
 
 | Byte offset | Size | Field |
 | --- | --- | --- |
-| 0 | 3 | VNI, with the same meaning as in the associated VXLAN deployment |
-| 3 | 1 | RuleID, value 0 for the sole prototype rule |
+| 0 | 1 | RuleID, configured per peer association; value 0 in the prototype |
+| 1 | 3 | VNI, with the same meaning as in the associated VXLAN deployment |
 | 4 | 8 | Frame ID, unique across active and recently retired frames within the configured peer association and VNI |
 | 12 | 1 | Fragment index, zero-based |
 | 13 | 1 | Fragment count, 2 through the configured maximum |
@@ -115,7 +118,7 @@ Start with a configured maximum of two fragments, valid where the minimum config
 ## Items to settle in the Internet-Draft
 
 1. Confirm the SCHC mode extension and identify how RuleID, frame identification, fragment indexing, and RCS map to SCHC terminology and architecture. Keep the tunnel binding explicit even if the generic mode and binding appear in the same document.
-2. Specify final header versioning, UDP demultiplexing and any eventual IANA request. Use a locally configured port in the prototype. Identify the need for peer capability provisioning before sending oversized frames.
+2. Specify final header versioning, UDP demultiplexing and any eventual IANA request. Use a locally configured port in the prototype. The SCHC UDP port of draft-ietf-schc-protocol-numbers is the intended candidate once assigned; that draft has no assigned value yet and does not define the UDP payload layout, so sharing it is open, as is the allocation of RuleID values on a shared port. Identify the need for peer capability provisioning before sending oversized frames.
 3. Specify the default operational profile, the Frame ID width (8 bytes is a prototype choice kept for alignment), the bounds on configured frame sizes and fragment counts, the meanings and configuration of Δ and L, the deadline equality rule (the prototype treats `t >= expiry` as expired), and the restart procedure.
 4. Include Security Considerations for peer and VNI admission, spoofing, state exhaustion, replay, and the use of an authenticated underlay if required by the deployment. CRC and UDP checksums detect corruption. They provide no peer authentication.
 5. Include IANA Considerations, manageability, and examples showing a last-fragment-first completion and a deadline expiry. Leave throughput claims pending measurement.
@@ -125,3 +128,4 @@ Start with a configured maximum of two fragments, valid where the minimum config
 - [RFC 7348, Virtual eXtensible Local Area Network (VXLAN)](https://www.rfc-editor.org/rfc/rfc7348.html), especially Sections 4.3 and 5.
 - [RFC 8724, SCHC Generic Framework](https://www.rfc-editor.org/rfc/rfc8724.html), especially Sections 8.2.3 and 8.4.1.
 - [RFC 8899, Datagram Packetization Layer Path MTU Discovery](https://www.rfc-editor.org/rfc/rfc8899.html).
+- [draft-ietf-schc-protocol-numbers](https://datatracker.ietf.org/doc/draft-ietf-schc-protocol-numbers/), informative, for the candidate SCHC UDP port.

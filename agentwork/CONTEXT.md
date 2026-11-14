@@ -35,7 +35,7 @@ report. Do not cite RFC text you cannot verify; cite section numbers given in DE
 
 ## Hard invariants
 
-- Wire format: 14-byte header (VNI 3, RuleID 1, Frame ID 8, index 1, count 1), then slice; 4-byte CRC-32C RCS (big-endian) on the final fragment only. Network byte order.
+- Wire format: 14-byte header (RuleID 1, VNI 3, Frame ID 8, index 1, count 1), then slice; 4-byte CRC-32C RCS (big-endian) on the final fragment only. Network byte order.
 - Slice budget `C = PMTU - H_IP - 8 - 14 - 4`; same C for every fragment; `N = ceil(len / C)`.
 - Receiver never delivers a frame after expiry; expired entries are ineligible even before a sweep.
 - Draft prose uses BCP 14 keywords only where interoperability requires; never claims throughput.

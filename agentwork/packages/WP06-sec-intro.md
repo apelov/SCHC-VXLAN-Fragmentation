@@ -26,7 +26,7 @@ Write the framing section in kramdown-rfc markdown. Keep it short: the draft is 
 
 ## Deliverables
 
-1. `01-introduction.md`: `# Introduction` (problem, requirements, non-goals incl. no ACK/retransmit, no inter-frame ordering across ordinary/fragmented paths), `# Terminology` (BCP 14 boilerplate text and a definitions list: VTEP, PMTU, slice, Frame ID, RCS, Δ, L, peer association), and `# Placement and Interoperability` (DESIGN "Placement and interoperability", incl. unicast scope, ingress replication, drop-and-count behavior, port-selection of the format, same source port for all fragments). Mark the provisional-wire-value status.
+1. `01-introduction.md`: `# Introduction` (problem, requirements, non-goals incl. no ACK/retransmit, no inter-frame ordering across ordinary/fragmented paths), `# Terminology` (BCP 14 boilerplate text and a definitions list: VTEP, PMTU, slice, Frame ID, RCS, Δ, L, peer association), and `# Placement and Interoperability` (DESIGN "Placement and interoperability", incl. unicast scope, ingress replication, drop-and-count behavior, port-selection of the format, same source port for all fragments, and the short NAT note from DESIGN). Mark the provisional-wire-value status.
 2. In the same file, `# Relationship to SCHC` covering the No-ACK in-order assumption of RFC 8724 §8.4.1, the candidate new mode, the mapping of RuleID/Frame ID/index/RCS to SCHC terms (as a table, marking each mapping that DESIGN lists under "Items to settle" as Open Issue), no RFC 8724 wire compatibility, and header compression out of scope.
 
 ## Owns (touch only these)

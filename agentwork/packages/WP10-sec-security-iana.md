@@ -26,7 +26,7 @@ Write the closing normative-support sections.
 
 ## Deliverables
 
-1. `05-security-iana.md`: `# Manageability Considerations` (counters, configuration of peers/VNIs/ports/PMTU/limits), `# Security Considerations` (peer and VNI admission, spoofing, state exhaustion, replay, authenticated underlay where required; CRC and UDP checksum detect corruption only, no authentication), `# IANA Considerations` (no request in this version; locally configured port; note the eventual UDP port and any SCHC registry request as Open Issue).
+1. `05-security-iana.md`: `# Manageability Considerations` (counters, configuration of peers/VNIs/ports/PMTU/limits), `# Security Considerations` (peer and VNI admission, spoofing, state exhaustion, replay, authenticated underlay where required; CRC and UDP checksum detect corruption only, no authentication), `# IANA Considerations` (no request in this version; locally configured port; cite draft-ietf-schc-protocol-numbers informatively as the candidate SCHC UDP port; note the eventual UDP port and any SCHC registry request as Open Issue).
 
 ## Owns (touch only these)
 

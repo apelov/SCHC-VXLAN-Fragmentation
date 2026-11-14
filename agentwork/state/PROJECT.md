@@ -25,4 +25,4 @@ Produces the individual Internet-Draft `draft-vladyka-schc-vxlan-fragmentation-0
 - Follow the project's active privacy profile in `agentwork/config/project.yaml`.
 - Open items in DESIGN.md "Items to settle" stay marked open in the draft; never resolve them.
 - Every number in the draft comes from DESIGN.md or the reference model's output. No throughput claims.
-- RFC citations are limited to those in DESIGN.md (RFC 7348 §4.3/§5, RFC 8724 §8.2.3/§8.4.1, RFC 8899) plus BCP 14 (RFC 2119, RFC 8174). CRC-32C is defined inline in the draft. The Driver verifies references after the build.
+- RFC citations are limited to those in DESIGN.md (RFC 7348 §4.3/§5, RFC 8724 §8.2.3/§8.4.1, RFC 8899) plus BCP 14 (RFC 2119, RFC 8174) and, informatively, draft-ietf-schc-protocol-numbers. CRC-32C is defined inline in the draft. The Driver verifies references after the build.

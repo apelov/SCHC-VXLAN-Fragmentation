@@ -34,7 +34,7 @@ Shared types for the reference model. Everything else imports from here.
 ## Deliverables
 
 1. `crc32c.py`: `crc32c(data: bytes) -> int` per the Castagnoli spec in DESIGN.md "Prototype wire format" (reflected, init/xorout 0xffffffff); test the check value 0xe3069283 for b"123456789". Stdlib only.
-2. `wire.py`: constants (HEADER_LEN=14, RCS_LEN=4, UDP_LEN=8, VXLAN_HDR_LEN=8, RULE_ID_0=0); frozen dataclass `Fragment(vni, rule_id, frame_id, index, count, payload, rcs: int|None)`; `encode(fragment) -> bytes` (RCS appended only when index == count-1; require rcs set then, unset otherwise); `decode(datagram: bytes) -> Fragment` raising `MalformedFragment(reason)` for short header, count<2, index>=count, empty slice, and a final fragment too short to hold slice plus RCS. Network byte order. VNI is 24 bits, frame_id 64 bits, validate ranges on encode.
+2. `wire.py`: constants (HEADER_LEN=14, RCS_LEN=4, UDP_LEN=8, VXLAN_HDR_LEN=8, RULE_ID_0=0); frozen dataclass `Fragment(rule_id, vni, frame_id, index, count, payload, rcs: int|None)` (wire order: RuleID at byte 0, VNI at bytes 1-3, Frame ID 4-11, index 12, count 13); `encode(fragment) -> bytes` (RCS appended only when index == count-1; require rcs set then, unset otherwise); `decode(datagram: bytes) -> Fragment` raising `MalformedFragment(reason)` for short header, count<2, index>=count, empty slice, and a final fragment too short to hold slice plus RCS. Network byte order. VNI is 24 bits, frame_id 64 bits, validate ranges on encode.
 3. Tests covering round trips, the byte offsets in the DESIGN table, final-fragment RCS handling and every malformed case.
 
 ## Owns (touch only these)
