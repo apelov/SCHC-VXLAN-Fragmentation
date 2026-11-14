@@ -1,0 +1,138 @@
+{
+  "version": "2.0",
+  "routing_profile": "sensitive",
+  "design_hash": "c478e4cbf6ce6d5dada91c1a8d700d589ee9cc55d7c04f8f71ca31d9afb6f49f",
+  "policy_hash": "7f1078c6a04d95b17e9fb4a00ca107e99bbaa1b016c6e8499ce0b5a8391fb0d8",
+  "agents_hash": "23056ba07b9f7e303daddb3d24cac74491bb312cb1808c36695b47c7ec344527",
+  "gate_hash": "b770d49b3faf2e96bf4c6dfc5ea0f800c7ab8547d1f1914af9cb691441d503dc",
+  "tasks": {
+    "WP01": {
+      "file": "agentwork/packages/WP01-ref-core.md",
+      "spec_hash": "fa26ff5d26a3ee35b892f3e27cc27b56e286c2c36d14a9dd2cd933a2e8565bf9",
+      "seed_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "digest": "eb34f4304ac77b5a954d5f3d6e8d56b8893c4ae330e8f3d63a488f8aa3557b1a",
+      "rung": 2,
+      "depends": []
+    },
+    "WP02": {
+      "file": "agentwork/packages/WP02-ref-sender.md",
+      "spec_hash": "977c4acf15c7f43ee011a10b03091fae555fe3fbc514be7db8956bb1591f09eb",
+      "seed_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "digest": "7515f287a8028495a7d7eb77a7352bff233abd2b6342e8b069929890a9d2df60",
+      "rung": 2,
+      "depends": [
+        "WP01"
+      ]
+    },
+    "WP03": {
+      "file": "agentwork/packages/WP03-ref-receiver.md",
+      "spec_hash": "00f7b76871111ab61cea7f30c3b655dbcf7392c005abc3de6236e70bbb3638f5",
+      "seed_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "digest": "9769e9354161d68f615de652c3c2cdfad1e74ba1ae94c766c01acc6c35b94a95",
+      "rung": 3,
+      "depends": [
+        "WP01"
+      ]
+    },
+    "WP04": {
+      "file": "agentwork/packages/WP04-examples-gen.md",
+      "spec_hash": "eadaa9d5dc10699e8c9510090aa508c5d0e9738afbe1b5abc6e6ce7892fc8c74",
+      "seed_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "digest": "67583ea639b9d99bc43b3ab8e69a3c884d09960d487d8dd7c9e56cc3021d0fae",
+      "rung": 2,
+      "depends": [
+        "WP02",
+        "WP03"
+      ]
+    },
+    "WP05": {
+      "file": "agentwork/packages/WP05-draft-tooling.md",
+      "spec_hash": "54d5829d7aa1ebf4dca86b1c574d21f10d49f07f13329f478347e6685dee668b",
+      "seed_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "digest": "00af0b1cf797deadf49f57bf38eb361b25e57aad12e68252fa0fc972acef65dd",
+      "rung": 1,
+      "depends": []
+    },
+    "WP06": {
+      "file": "agentwork/packages/WP06-sec-intro.md",
+      "spec_hash": "389ffee10b23585cb16f4da41949ab89da3e48fb16c52668d39564d7fa588970",
+      "seed_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "digest": "628b9486e1419f307c17a435ad246b22e14d81665ff6cf53e79da8c210b51f04",
+      "rung": 2,
+      "depends": [
+        "WP05"
+      ]
+    },
+    "WP07": {
+      "file": "agentwork/packages/WP07-sec-wire.md",
+      "spec_hash": "b3bc01b744edf5261bae0ceb5e4110aee1ddf28b82511a4d8a6eaa8f52452d34",
+      "seed_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "digest": "968a5a654f7f291c9531b47c485a817f63ab92fda71dfefce95889fba3a22ef8",
+      "rung": 2,
+      "depends": [
+        "WP01",
+        "WP05"
+      ]
+    },
+    "WP08": {
+      "file": "agentwork/packages/WP08-sec-procedures.md",
+      "spec_hash": "9b76819044fcffbfd0dd957a05b7fc1fff7c78c157cd2ffa1637650f3df86d9f",
+      "seed_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "digest": "800665d0d8812c301bafca2391d7a79d32ddbae144d883cdc7042c519034dbd3",
+      "rung": 3,
+      "depends": [
+        "WP02",
+        "WP03",
+        "WP05"
+      ]
+    },
+    "WP09": {
+      "file": "agentwork/packages/WP09-sec-timing.md",
+      "spec_hash": "5d358f693962999accd992ffa2e398800a0926ea075d9d6b79b231408d2a3135",
+      "seed_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "digest": "7168fe34b36a69bf1fe5ef27b84f8d2d269a9e087c388b2fa6d2006d800d3b8a",
+      "rung": 3,
+      "depends": [
+        "WP05"
+      ]
+    },
+    "WP10": {
+      "file": "agentwork/packages/WP10-sec-security-iana.md",
+      "spec_hash": "e77c885058af756a284af21f4d0a8d1e6ff9c4917ceac6f59bcc9c27178d6526",
+      "seed_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "digest": "206372f2141112731c98adf184cfb84e0afa43952eb753c0e3f76d8100bda972",
+      "rung": 3,
+      "depends": [
+        "WP05"
+      ]
+    },
+    "WP11": {
+      "file": "agentwork/packages/WP11-sec-examples.md",
+      "spec_hash": "ad13967bcf7de30d998a5a755702cad63eb8bb09d55eb9d616c2e199f268e1cc",
+      "seed_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "digest": "4101fb946ba9a7b44415ac230a1f3b3174e8269f07ff4a385b52c9cb8a3e1745",
+      "rung": 2,
+      "depends": [
+        "WP04",
+        "WP05"
+      ]
+    },
+    "WP12": {
+      "file": "agentwork/packages/WP12-draft-assemble.md",
+      "spec_hash": "6673dd0d99c5229fdb463c83f8678313efadee01c88863932166e8c898943141",
+      "seed_hash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "digest": "b8f7a70b25a346c20a42815bcfe905943740d04c16677a58286ff961dc74fafe",
+      "rung": 3,
+      "depends": [
+        "WP06",
+        "WP07",
+        "WP08",
+        "WP09",
+        "WP10",
+        "WP11"
+      ]
+    }
+  },
+  "sealed_at": 1794688250.3934028,
+  "generation": 1
+}
