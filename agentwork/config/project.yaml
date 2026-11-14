@@ -34,5 +34,5 @@ protected_files:
   - "agentwork/config/harness-manifest.json"
 
 verification:
-  test_command: "python3 -m pytest -q"
+  test_command: "pytest -q"
   lint_command: "ruff check src tests tools"
