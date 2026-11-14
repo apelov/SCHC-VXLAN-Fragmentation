@@ -1,7 +1,7 @@
 # SCHC-VXLAN-Fragmentation — Project Orientation
 
 ## What this project does
-Produces the individual Internet-Draft `draft-vladyka-schc-vxlan-fragmentation-00` (authors Andrii Vladyka, Alexander Pelov) for the IETF SCHC WG: deadline-bounded Ethernet frame fragmentation for VXLAN deployments, framed as a candidate new SCHC fragmentation mode with a UDP/Ethernet binding. A small Python reference model backs every number and example in the draft.
+Produces the individual Internet-Draft `draft-vladyka-schc-vxlan-fragmentation-00` (authors Andrii Vladyka, Alexander Pelov) for the IETF SCHC WG: deadline-bounded Ethernet frame fragmentation for VXLAN deployments, defined as a new SCHC fragmentation mode, Out-of-Order No-ACK, with a UDP/Ethernet binding. A small Python reference model backs every number and example in the draft.
 
 ## Authoritative Documents
 - Design: `docs/design/DESIGN.md`
