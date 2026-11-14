@@ -1278,7 +1278,12 @@ def inspect_report_question(tid: str) -> Optional[str]:
     text = rep_file.read_text(encoding="utf-8", errors="ignore")
     m_q = re.search(r"^##\s+Question\s*\n+(.*?)(?=\n##\s+|\Z)", text, re.MULTILINE | re.DOTALL)
     if m_q and m_q.group(1).strip():
-        return m_q.group(1).strip()
+        body = m_q.group(1).strip()
+        # Workers routinely write "## Question\n\nNone -- ..." to confirm they
+        # checked for ambiguity and found none; that is not a blocking question.
+        if re.match(r"(?i)^(none|n/a|no|nothing)\b", body):
+            return None
+        return body
     return None
 
 
