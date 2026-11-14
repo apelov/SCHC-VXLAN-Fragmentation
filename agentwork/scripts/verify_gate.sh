@@ -5,7 +5,7 @@
 #
 set -euo pipefail
 
-export PATH="/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${HOME}/.local/bin:${PATH:-}"
+export PATH="/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:${HOME}/.local/bin:${PATH:-}"
 
 [ $# -ge 1 ] || { echo "Usage: verify_gate.sh <TASK_ID> [WORKTREE_DIR] [BASE_SHA]" >&2; exit 1; }
 TASK_ID="$(printf '%s' "$1" | tr '[:lower:]' '[:upper:]')"

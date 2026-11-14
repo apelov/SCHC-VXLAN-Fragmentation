@@ -261,7 +261,20 @@ case "$AGENT" in
     ;;
 
   claude)
-    RUN_CMD=(env -u ANTHROPIC_BASE_URL -u ANTHROPIC_AUTH_TOKEN -u ANTHROPIC_API_KEY \
+    # Strip not just ANTHROPIC_* but also this process's own Claude Code / Desktop
+    # session control-plane vars (CLAUDECODE, CLAUDE_CODE_*, CLAUDE_PID, ...). If
+    # launch.sh itself runs inside a Claude Code session, the nested `claude -p`
+    # worker otherwise inherits CLAUDE_CODE_MESSAGING_SOCKET/CLAUDE_PID and tries to
+    # hand off to that session's IPC socket for its auth/session handshake, which
+    # nothing answers -- it hangs indefinitely (0% CPU, no network, no output).
+    STRIP_SESSION_VARS=(-u ANTHROPIC_BASE_URL -u ANTHROPIC_AUTH_TOKEN -u ANTHROPIC_API_KEY)
+    while IFS='=' read -r -d '' _name _ignored; do
+      case "$_name" in
+        CLAUDECODE|CLAUDE_CODE_*|CLAUDE_PID|CLAUDE_EFFORT|CLAUDE_PREVIEW_*|AI_AGENT|BAGGAGE)
+          STRIP_SESSION_VARS+=(-u "$_name") ;;
+      esac
+    done < <(env -0)
+    RUN_CMD=(env "${STRIP_SESSION_VARS[@]}" \
       claude -p --permission-mode bypassPermissions \
       --settings '{"env":{"ANTHROPIC_BASE_URL":"https://api.anthropic.com"}}' "$PROMPT")
     ;;
@@ -335,6 +348,7 @@ if [ "$ISOLATION_MODE" = "worktree-seatbelt" ] && [ "$AGENT" != "fake" ]; then
 (allow default)
 (deny file-write*)
 (allow file-write*
+  (literal \"/dev/null\")
   (subpath \"$REAL_WT\")
   (subpath \"$REAL_GIT/worktrees/$WP_ID\")
   (subpath \"$REAL_GIT/objects\")
