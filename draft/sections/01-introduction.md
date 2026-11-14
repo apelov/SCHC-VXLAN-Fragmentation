@@ -1,6 +1,6 @@
 # Introduction
 
-VXLAN {{RFC7348}} carries Ethernet frames in UDP datagrams. When the encapsulated frame exceeds the underlay IP path MTU (PMTU), standard VXLAN cannot carry it. This document specifies an extension that fragments such a frame into several UDP datagrams between a pair of VTEPs, reassembles it at the receiver, and delivers it only after successful reassembly.
+VXLAN {{RFC7348}} carries Ethernet frames in UDP datagrams. When the encapsulated frame exceeds the underlay IP path MTU (PMTU), standard VXLAN cannot carry it, and VTEPs MUST NOT fragment VXLAN packets (Section 4.3 of {{RFC7348}}). This document specifies an extension that fragments such a frame into several UDP datagrams between a pair of VTEPs, reassembles it at the receiver, and delivers it only after successful reassembly.
 
 The requirements are:
 

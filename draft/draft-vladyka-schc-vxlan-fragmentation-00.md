@@ -25,8 +25,6 @@ author:
     email: alexander.pelov@imt-atlantique.fr
 
 normative:
-  RFC2119:
-  RFC8174:
   RFC7348:
   RFC8724:
   RFC8899:
