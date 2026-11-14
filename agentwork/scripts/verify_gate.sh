@@ -334,10 +334,11 @@ for line in content.splitlines():
     if in_dw:
         if s.startswith("-"):
             v = s.lstrip("-").strip()
-            # Only strip a genuine wrapping quote pair (e.g. - "cmd"), never a
-            # quote that's merely the last character of an unrelated trailing
-            # token (e.g. ... --must "Out-of-Order No-ACK").
-            if len(v) >= 2 and v[0] == v[-1] and v[0] in ("'", '"'):
+            # Only strip a genuine wrapping quote pair, never a quote that's
+            # merely the last character of an unrelated trailing token such
+            # as a quoted --must argument.
+            dq, sq = chr(34), chr(39)
+            if len(v) >= 2 and v[0] == v[-1] and v[0] in (dq, sq):
                 v = v[1:-1]
             print(v)
         elif line and not line.startswith(" "):
