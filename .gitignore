@@ -8,3 +8,7 @@ agentwork/state/STATUS_MIRROR.json
 __pycache__/
 *.py[cod]
 .DS_Store
+
+# Draft build outputs (produced by draft/build.sh)
+draft/out/
+draft/.refcache/
