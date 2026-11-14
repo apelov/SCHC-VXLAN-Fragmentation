@@ -15,6 +15,7 @@
 - RuleID stays one byte (value 0) to preserve alignment; a zero-bit RuleID is not used. RFC 8724 §6 leaves RuleID size to the Profile.
 - PMTU is a per-peer, per-direction configuration, not tied to 1500.
 - Frame ID stays 8 bytes; its width is an open item. The draft is to be short.
+- Design review: keep ascending index plus count rather than an FCN (rationale in "Relationship to SCHC"); expiry is decided by arrival timestamp, with `t >= expiry` expired; zero UDP checksums are dropped; the source port is derived as for VXLAN; the receiver's maximum slice length is a local bound.
 
 ---
 # Deadline-bounded Ethernet fragmentation for VXLAN deployments
@@ -38,11 +39,17 @@ Transmit placement is after bridge forwarding and before tunnel encapsulation. R
 * If the extension is unavailable or the configured limits cannot carry the frame, drop the oversized frame and increment a local counter.
 * Begin with unicast transmission between VTEPs. BUM traffic is in scope only through ingress replication to individually provisioned unicast peers. Each copy uses that peer's capabilities and PMTU.
 
-The extension carries the semantics of the Ethernet overlay VNI but uses its own UDP payload format. It does not fragment an already encapsulated VXLAN packet at IP. Use the same source UDP port and outer five-tuple for every fragment of a frame to preserve ordinary flow-hash affinity. The receiver identifies a configured peer independently of the source UDP port. The protocol tolerates reorder even when path affinity fails.
+The extension carries the semantics of the Ethernet overlay VNI but uses its own UDP payload format. It does not fragment an already encapsulated VXLAN packet at IP. Use the same source UDP port and outer five-tuple for every fragment of a frame to preserve ordinary flow-hash affinity. Derive the source port from the inner frame as the sender does for ordinary VXLAN (RFC 7348 Section 5). The receiver identifies a configured peer independently of the source UDP port. The protocol tolerates reorder even when path affinity fails.
 
 ## Relationship to SCHC
 
 RFC 8724 Section 8.4.1 No-ACK assumes in-order fragment delivery and concludes reassembly on All-1. The indexed receiver below can accept the final fragment first and wait for missing indices. Treat this as a **candidate new SCHC fragmentation mode** with a UDP/Ethernet binding, pending working-group agreement on how it integrates with the SCHC framework. The trailer below plays the role of a reassembly check sequence (RCS). The prototype wire format is provisional and has no RFC 8724 wire compatibility. A deployment with a genuine in-order guarantee could instead specify a separate RFC 8724 No-ACK profile. Header compression is outside this draft's scope.
+
+The mode differs from RFC 8724 No-ACK in three ways, which the draft states explicitly:
+
+* **Index and count instead of FCN.** In No-ACK the FCN All-1 value only signals the last tile, the recommended FCN size is one bit, and the meaning of other values is left to the Profile (RFC 8724 Sections 8.2.4 and 8.4.1). That is enough for an in-order receiver. A receiver that may see the final fragment first needs the position of every fragment and the total number of fragments from whichever fragment arrives first, so each fragment carries an ascending index and the count. The index plays the role of the FCN; the count has no RFC 8724 counterpart.
+* **Fixed deadline instead of Inactivity Timer.** The No-ACK receiver resets the Inactivity Timer on each Regular fragment (RFC 8724 Section 8.4.1.2). Here the deadline is fixed at the first arrival and never extended.
+* **Frame ID and retirement record.** The Frame ID plays the role of DTag, sized so that a retired frame stays recognizable while late fragments can still arrive.
 
 ## Prototype wire format
 
@@ -58,7 +65,7 @@ The configured UDP destination port selects this format. All multibyte integers 
 | 14 | variable | Nonempty slice of the original frame |
 | End of final fragment | 4 | RCS, present only if index equals count minus one |
 
-Use CRC-32C over the original frame bytes in wire order. For interoperability, specify the Castagnoli polynomial, reflected input/output, initial register and final XOR of 0xffffffff, the check value 0xe3069283 for ASCII `123456789`, and big-endian trailer serialization. Generate and verify the UDP checksum on all extension datagrams. The CRC checks reassembly integrity.
+Use CRC-32C over the original frame bytes in wire order. For interoperability, specify the Castagnoli polynomial, reflected input/output, initial register and final XOR of 0xffffffff, the check value 0xe3069283 for ASCII `123456789`, and big-endian trailer serialization. Generate and verify the UDP checksum on all extension datagrams, over IPv4 as well as IPv6. A receiver drops an extension datagram whose UDP checksum is zero or incorrect. This differs from RFC 7348 Section 5, which recommends a zero UDP checksum for VXLAN: the UDP checksum is the only protection of the fragment header. The CRC covers the frame bytes only and checks reassembly integrity.
 
 ## MTU and sender algorithm
 
@@ -77,10 +84,10 @@ With a 1500-byte IP PMTU and no outer IP options or extensions, standard VXLAN c
 
 Key entries by configured peer association (including the local tunnel endpoint), VNI, RuleID, and Frame ID. A single worker or equivalent synchronization owns each entry. Use a local monotonic clock for admission, expiry, and delivery decisions.
 
-1. Before allocating, validate peer and VNI authorization, UDP checksum, RuleID, count and index bounds, that the slice length does not exceed the configured maximum slice length, and that a nonempty slice remains after parsing the header and any required trailer. Cap incomplete entries and retained bytes per peer and globally.
-2. Drop fragments for retired IDs. The first admissible fragment, of any index, opens an entry with `expiry = first_rx + Δ`. Use arrival timestamps from a consistent receive stage and enforce expiry before publishing a completed frame. Timer processing can be batched. Expired entries are ineligible for completion even if a timer sweep has yet to run.
+1. Before allocating, validate peer and VNI authorization, UDP checksum, RuleID, count and index bounds, that the slice length does not exceed the receiver's configured maximum slice length (a local bound, at most the configured maximum frame length, since the receiver does not know the sender's PMTU), and that a nonempty slice remains after parsing the header and any required trailer. Cap incomplete entries and retained bytes per peer and globally.
+2. Drop fragments for retired IDs. The first admissible fragment, of any index, opens an entry with `expiry = first_rx + Δ`. Take arrival timestamps at a consistent receive stage. Expiry is decided by arrival timestamp alone: an entry is expired for any fragment whose arrival timestamp `t` satisfies `t >= expiry`, so a fragment arriving exactly at the deadline is late. Timer processing can be batched. Expired entries are ineligible for completion even if a timer sweep has yet to run: a fragment that finds such an entry retires it as expired, counted once, and is itself counted as late.
 3. Require count to match across the entry, every nonfinal slice to have the same length, and the final slice to be no longer than a nonfinal slice. Store one slice per index and update a bitmap and running byte count. Ignore identical duplicate fragments without extending expiry. A conflicting duplicate, inconsistent metadata, or a byte count exceeding the configured maximum frame length aborts and retires the entry.
-4. When the bitmap is complete, require the sum of slice lengths to lie within the configured frame-length range. Assemble slices in index order, verify the RCS, and deliver once if verification finishes before expiry. A full bitmask with invalid length or RCS aborts the entry.
+4. When the bitmap is complete, require the sum of slice lengths to lie within the configured frame-length range. Assemble slices in index order, verify the RCS, and deliver once. The frame is eligible if the arrival timestamp of the completing fragment is before expiry; time spent on assembly and verification after that arrival does not affect eligibility and is budgeted in `Δ`. A full bitmask with invalid length or RCS aborts the entry.
 5. On completion, abort, or timeout, retire the ID and release the buffers. A final fragment with holes stays pending until the holes fill or the deadline passes. Keep a bounded retirement record to suppress late fragments and duplicate delivery.
 
 Starting an entry from any index supports reordering. Consequently, never evict a retirement record while the deployment still allows fragments for that ID to arrive. For the first prototype, configure `L` as an upper bound on the arrival spread for all copies of fragments of a frame, including duplicates. Keep retirement records for `L` after retirement. Provision capacity for active and retired IDs at the admitted rate, or reserve a retirement slot at admission and stop admitting new IDs within an exhausted scope until space returns. Drops before admission create no deliverable state. Without a defensible bound, suppression via finite retention is best effort.
@@ -97,7 +104,7 @@ The first-arrival deadline bounds receiver-held reassembly time. An end-to-end f
 
 ## Fast path and acceptance checks
 
-Start with a configured maximum of two fragments, valid where the minimum configured PMTU carries the maximum allowed frame in two slices (for example, an Ethernet-1500 service over a 1500-byte PMTU). Validate that the minimum underlay PMTU can carry the maximum allowed frame in two pieces. Use a two-bit receive mask, bounded per-worker state, batched timer processing, and scatter/gather where the forwarding interface supports it. Keep ordinary VXLAN on its existing offload path where supported. Benchmark the integrity check and the fragmented forwarding path together.
+Start with a configured maximum of two fragments, valid where the minimum configured PMTU carries the maximum allowed frame in two slices (for example, an Ethernet-1500 service over a 1500-byte PMTU). Use a two-bit receive mask, bounded per-worker state, batched timer processing, and scatter/gather where the forwarding interface supports it. Keep ordinary VXLAN on its existing offload path where supported. Benchmark the integrity check and the fragmented forwarding path together.
 
 * Check exact-fit and one-byte-over frame sizes for IPv4 and IPv6, including tagged Ethernet, and verify every emitted IP packet fits the PMTU.
 * Check both arrival orders, every single-fragment loss, identical and conflicting duplicates, malformed or inconsistent headers, bad RCS, deadline equality, late arrival after retirement, and ID uniqueness across restart.
@@ -109,7 +116,7 @@ Start with a configured maximum of two fragments, valid where the minimum config
 
 1. Confirm the SCHC mode extension and identify how RuleID, frame identification, fragment indexing, and RCS map to SCHC terminology and architecture. Keep the tunnel binding explicit even if the generic mode and binding appear in the same document.
 2. Specify final header versioning, UDP demultiplexing and any eventual IANA request. Use a locally configured port in the prototype. Identify the need for peer capability provisioning before sending oversized frames.
-3. Specify the default operational profile, the Frame ID width (8 bytes is a prototype choice kept for alignment), the bounds on configured frame sizes and fragment counts, the meanings and configuration of Δ and L, and the restart procedure.
+3. Specify the default operational profile, the Frame ID width (8 bytes is a prototype choice kept for alignment), the bounds on configured frame sizes and fragment counts, the meanings and configuration of Δ and L, the deadline equality rule (the prototype treats `t >= expiry` as expired), and the restart procedure.
 4. Include Security Considerations for peer and VNI admission, spoofing, state exhaustion, replay, and the use of an authenticated underlay if required by the deployment. CRC and UDP checksums detect corruption. They provide no peer authentication.
 5. Include IANA Considerations, manageability, and examples showing a last-fragment-first completion and a deadline expiry. Leave throughput claims pending measurement.
 
