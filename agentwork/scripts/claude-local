@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+# claude-local: run Claude Code against a local Ollama server.
+#   claude-local [model] [claude args...]
+set -euo pipefail
+
+RAW_URL="${OLLAMA_HOST_URL:-${OLLAMA_BASE_URL:-http://localhost:11434}}"
+OLLAMA_URL="${RAW_URL%/}"
+
+usage() {
+  cat <<USAGE
+Usage: claude-local [model] [claude args...]
+
+Runs the claude CLI against local Ollama (${OLLAMA_URL}). Model: first
+argument, else \$CLAUDE_LOCAL_MODEL / \$OLLAMA_MODEL (default qwen3-coder-64k).
+Optional \$CLAUDE_LOCAL_SMALL_MODEL is used for Haiku/subagent calls if installed.
+Server URL: \$OLLAMA_HOST_URL or \$OLLAMA_BASE_URL.
+USAGE
+}
+
+tags_json() { curl -sf --max-time 3 "${OLLAMA_URL}/api/tags" 2>/dev/null || true; }
+tag_names() { tags_json | grep -o '"name":"[^"]*"' | sed 's/^"name":"//; s/"$//'; }
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+  --list-models)
+    curl -sf --max-time 3 "${OLLAMA_URL}/api/version" >/dev/null 2>&1 || { echo "ERROR: Ollama not reachable at ${OLLAMA_URL}" >&2; exit 1; }
+    tag_names; exit 0 ;;
+esac
+
+if ! command -v claude >/dev/null 2>&1; then
+  for d in "$HOME/.npm-global/bin" "$HOME/.local/bin"; do
+    [ -x "$d/claude" ] && { PATH="$d:$PATH"; break; }
+  done
+fi
+command -v claude >/dev/null 2>&1 || { echo "ERROR: 'claude' CLI not found on PATH (also checked ~/.npm-global/bin, ~/.local/bin)." >&2; exit 1; }
+
+MODEL="${CLAUDE_LOCAL_MODEL:-${OLLAMA_MODEL:-qwen3-coder-64k}}"
+first="${1:-}"
+if [ -n "$first" ] && [ "${first#-}" = "$first" ] && [[ "$first" =~ ^[a-zA-Z0-9._:-]+$ ]]; then
+  MODEL="$first"; shift
+fi
+
+curl -sf --max-time 3 "${OLLAMA_URL}/api/version" >/dev/null 2>&1 || {
+  echo "ERROR: Ollama server not reachable at ${OLLAMA_URL}. Start it with 'ollama serve'." >&2; exit 1; }
+
+TAGS="$(tag_names)"
+has_model() { printf '%s\n' "$TAGS" | grep -qxF -e "$1" -e "$1:latest"; }
+if ! has_model "$MODEL"; then
+  echo "ERROR: model '$MODEL' not found on ${OLLAMA_URL}. Available:" >&2
+  printf '  %s\n' $TAGS >&2
+  echo "Install with: ollama pull $MODEL" >&2
+  exit 1
+fi
+
+SMALL_MODEL="${CLAUDE_LOCAL_SMALL_MODEL:-}"
+if [ -z "$SMALL_MODEL" ] || ! has_model "$SMALL_MODEL"; then SMALL_MODEL="$MODEL"; fi
+
+export ANTHROPIC_BASE_URL="${OLLAMA_URL}"
+export ANTHROPIC_AUTH_TOKEN="ollama"
+export ANTHROPIC_API_KEY=""
+export ANTHROPIC_MODEL="$MODEL"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="$MODEL"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="$MODEL"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="$SMALL_MODEL"
+export ANTHROPIC_SMALL_FAST_MODEL="$SMALL_MODEL"
+export CLAUDE_CODE_SUBAGENT_MODEL="$SMALL_MODEL"
+export DISABLE_NON_ESSENTIAL_MODEL_CALLS=1 DISABLE_TELEMETRY=1 DISABLE_AUTOUPDATER=1
+
+SETTINGS_JSON="{\"env\":{\"ANTHROPIC_BASE_URL\":\"${OLLAMA_URL}\",\"_CLAUDE_CODE_ASSUME_FIRST_PARTY_BASE_URL\":\"0\",\"ENABLE_TOOL_SEARCH\":\"false\"}}"
+exec claude --model "$MODEL" --settings "$SETTINGS_JSON" "$@"

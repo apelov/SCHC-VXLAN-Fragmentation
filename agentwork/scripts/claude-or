@@ -1,0 +1,88 @@
+#!/usr/bin/env bash
+# claude-or: run Claude Code against OpenRouter.
+#   claude-or [alias|vendor/model] [claude args...]
+set -euo pipefail
+
+declare -a ALIASES=(
+  "nemotron_ultra=nvidia/nemotron-3-ultra-550b-a55b:free"
+  "nemotron_super=nvidia/nemotron-3-super-120b-a12b:free"
+  "minimax_flash=minimax/minimax-m3.1-flash:free"
+  "laguna_s=poolside/laguna-s-2.1:free"
+  "laguna_xs=poolside/laguna-xs-2.1:free"
+  "deepseek=deepseek/deepseek-chat-v3-0324:free"
+  "qwen_coder=qwen/qwen3-coder:free"
+)
+
+usage() {
+  cat <<USAGE
+Usage: claude-or [alias|vendor/model] [claude args...]
+
+Runs the claude CLI against OpenRouter. Aliases (see --list-models) or any
+vendor/model slug may be given as the first argument; otherwise defaults come
+from OPENROUTER_MODEL / OPENROUTER_SMALL_MODEL.
+
+API key lookup order: \$OPENROUTER_API_KEY, ~/.config/openrouter/api_key,
+macOS Keychain item 'openrouter-api-key'.
+USAGE
+}
+
+list_models() {
+  local a
+  for a in "${ALIASES[@]}"; do printf '%-16s %s\n' "${a%%=*}" "${a#*=}"; done
+}
+
+case "${1:-}" in
+  -h|--help) usage; exit 0 ;;
+  --list-models) list_models; exit 0 ;;
+esac
+
+if ! command -v claude >/dev/null 2>&1; then
+  for d in "$HOME/.npm-global/bin" "$HOME/.local/bin"; do
+    [ -x "$d/claude" ] && { PATH="$d:$PATH"; break; }
+  done
+fi
+command -v claude >/dev/null 2>&1 || { echo "ERROR: 'claude' CLI not found on PATH (also checked ~/.npm-global/bin, ~/.local/bin)." >&2; exit 1; }
+
+MAIN_MODEL="${OPENROUTER_MODEL:-nvidia/nemotron-3-ultra-550b-a55b:free}"
+SMALL_MODEL="${OPENROUTER_SMALL_MODEL:-nvidia/nemotron-3-super-120b-a12b:free}"
+
+first="${1:-}"
+if [ -n "$first" ] && [ "${first#-}" = "$first" ]; then
+  picked=""
+  for a in "${ALIASES[@]}"; do
+    [ "${a%%=*}" = "$first" ] && picked="${a#*=}"
+  done
+  if [ -z "$picked" ] && [[ "$first" =~ ^[a-zA-Z0-9._-]+/[a-zA-Z0-9._:-]+$ ]]; then picked="$first"; fi
+  if [ -n "$picked" ]; then
+    MAIN_MODEL="$picked"; SMALL_MODEL="$picked"; shift
+  fi
+fi
+
+KEY="${OPENROUTER_API_KEY:-}"
+if [ -z "$KEY" ] && [ -r "$HOME/.config/openrouter/api_key" ]; then
+  KEY="$(tr -d '[:space:]' < "$HOME/.config/openrouter/api_key")"
+fi
+if [ -z "$KEY" ] && command -v security >/dev/null 2>&1; then
+  KEY="$(security find-generic-password -a "${USER:-$(id -un)}" -s openrouter-api-key -w 2>/dev/null || true)"
+fi
+if [ -z "$KEY" ]; then
+  cat >&2 <<'MSG'
+ERROR: no OpenRouter API key found. Provide one via any of:
+  1. export OPENROUTER_API_KEY=sk-or-...
+  2. echo 'sk-or-...' > ~/.config/openrouter/api_key && chmod 600 ~/.config/openrouter/api_key
+  3. security add-generic-password -a "$USER" -s openrouter-api-key -w 'sk-or-...'
+MSG
+  exit 1
+fi
+
+export ANTHROPIC_BASE_URL="https://openrouter.ai/api"
+export ANTHROPIC_AUTH_TOKEN="$KEY"
+export ANTHROPIC_API_KEY=""
+export ANTHROPIC_MODEL="$MAIN_MODEL"
+export ANTHROPIC_DEFAULT_OPUS_MODEL="$MAIN_MODEL"
+export ANTHROPIC_DEFAULT_SONNET_MODEL="$SMALL_MODEL"
+export ANTHROPIC_DEFAULT_HAIKU_MODEL="$SMALL_MODEL"
+export CLAUDE_CODE_SUBAGENT_MODEL="$SMALL_MODEL"
+export CLAUDE_CODE_MAX_CONTEXT_TOKENS="${CLAUDE_CODE_MAX_CONTEXT_TOKENS:-1000000}"
+
+exec claude --settings '{"env":{"ANTHROPIC_BASE_URL":"https://openrouter.ai/api","_CLAUDE_CODE_ASSUME_FIRST_PARTY_BASE_URL":"0","ENABLE_TOOL_SEARCH":"false"}}' "$@"
