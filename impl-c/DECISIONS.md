@@ -126,3 +126,27 @@ IP_PMTUDISC_PROBE sets DF while ignoring cached PMTU, that the transmit socket's
 drop-all filter still prevents ICMP port-unreachable responses, that raw-socket
 copies arrive as expected alongside bound UDP sockets, and that the TAP MTU
 (max_frame_len minus 14) supports the intended tagged and untagged frames.
+
+## WP10: namespace integration test
+
+`tests/integration/run.sh` builds four namespaces (prefix `schcvx<pid>-`), runs
+each receiver mode with freshly generated configs, and sums the counters of both
+daemons (the counters file has a `[association lab]` header followed by
+`name value` lines; the script reads lines by name). Ping loss is derived from
+the transmitted/received counts. Ordered-mode reorder loss and loss-step loss are
+reported, not judged. The temporary directory is kept for inspection. The server
+run must confirm: the daemon creates a non-persistent `schc0` (it disappears when
+the process exits, and the script waits for that before restarting); SIGUSR1
+rewrites the counters file within 0.5 s; the daemon does not require `schc0` to
+be pre-configured up or bridged; the TAP MTU from max_frame_len 1518 carries
+1514-byte frames; DF pings of size 1472 fit the 1500 access MTU.
+
+Finding from the first root run: every datagram was counted malformed. veth has
+TX checksum offload on by default, so locally generated UDP packets cross the
+underlay with a partial checksum (CHECKSUM_PARTIAL); the kernel UDP stack accepts
+them, but the daemon receives on a raw socket and verifies the checksum in
+software (zero or wrong is dropped, as the draft requires). Fix: `run.sh` runs
+`ethtool -K tx off` on u1 and u2 and fails early if ethtool is missing; physical
+NICs fill the checksum in hardware, so only the veth test is affected.
+
+Server run (2026-11-15, server 1): all required steps passed for both receivers, confirming the assumptions above. Ordered receiver lost 7 of 20 reordered pings, as expected; the tolerant receiver lost none, and counted 12 duplicates under netem duplicate 50%.
