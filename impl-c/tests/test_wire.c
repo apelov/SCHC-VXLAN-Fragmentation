@@ -61,16 +61,35 @@ static int run(enum schcvx_variant v)
     CHECK(schcvx_classify(&a,b,23,&got)==0);
     CHECK(got.kind==SCHCVX_UNFRAGMENTED && got.payload==b && got.payload_len==23);
     b[0]=v==SCHCVX_COMPACT ? 0x30 : 3;
-    CHECK(schcvx_classify(&a,b,23,&got)==-SCHCVX_E_UNKNOWN_RULE);
+    {
+        /* Sentinel: output struct is unchanged on every classify error. */
+        struct schcvx_msg sentinel, before;
+        memset(&sentinel,0xa5,sizeof(sentinel)); before=sentinel;
+        CHECK(schcvx_classify(&a,b,23,&sentinel)==-SCHCVX_E_UNKNOWN_RULE);
+        CHECK(memcmp(&sentinel,&before,sizeof(before))==0);
+        CHECK(schcvx_classify(&a,b,0,&sentinel)==-SCHCVX_E_MALFORMED);
+        CHECK(schcvx_classify(&a,NULL,23,&sentinel)==-SCHCVX_E_MALFORMED);
+        CHECK(schcvx_classify(&a,b,h-1,&sentinel)==-SCHCVX_E_MALFORMED);
+        CHECK(memcmp(&sentinel,&before,sizeof(before))==0);
+    }
     m.kind=SCHCVX_REGULAR; m.fcn=0; m.dtag=0; m.rule_id=2;
     CHECK(schcvx_encode_header(&a,&m,b)==h);
     CHECK(schcvx_classify(&a,b,h+1,&got)==0 && got.rule_id==2);
-    m.dtag=v==SCHCVX_COMPACT ? UINT64_C(0x100000000) : UINT64_C(0x1000000000000000);
-    CHECK(schcvx_encode_header(&a,&m,b)==0);
-    m.dtag=0; m.fcn=16;
-    CHECK(schcvx_encode_header(&a,&m,b)==0);
-    m.fcn=0; m.rule_id=16;
-    CHECK(schcvx_encode_header(&a,&m,b)==0);
+    {
+        /* Sentinel: the encoder writes nothing when it returns an error. */
+        uint8_t pat[sizeof(b)], s[sizeof(b)];
+        memset(pat,0xa5,sizeof(pat));
+        memcpy(s,pat,sizeof(s));
+        m.dtag=v==SCHCVX_COMPACT ? UINT64_C(0x100000000) : UINT64_C(0x1000000000000000);
+        CHECK(schcvx_encode_header(&a,&m,s)==0);
+        CHECK(memcmp(s,pat,sizeof(s))==0);
+        m.dtag=0; m.fcn=16;
+        CHECK(schcvx_encode_header(&a,&m,s)==0);
+        CHECK(memcmp(s,pat,sizeof(s))==0);
+        m.fcn=0; m.rule_id=16;
+        CHECK(schcvx_encode_header(&a,&m,s)==0);
+        CHECK(memcmp(s,pat,sizeof(s))==0);
+    }
     a.cd_rule_id=v==SCHCVX_COMPACT ? 0x10 : 1;
     CHECK(schcvx_wire_config_check(&a)==-SCHCVX_E_CONFIG);
     return 0;

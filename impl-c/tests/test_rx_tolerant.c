@@ -14,6 +14,10 @@ static void make(unsigned count) {
     for(unsigned i=0;i<count;i++) CHECK(!schcvx_tx_fragment(&plan,&wire,rule,42,prefix,frame,frame_len,i,fragments[i],sizeof(fragments[i]),&lengths[i]));
     k=count;
 }
+static uint8_t saved[9][8][256]; static size_t savedlen[9][8];
+static void stash(unsigned count) {
+    make(count); for(unsigned i=0;i<count;i++) { memcpy(saved[count][i],fragments[i],lengths[i]); savedlen[count][i]=lengths[i]; }
+}
 static void init(struct schcvx_rx_tolerant *r,struct schcvx_rx_tolerant_pool *pool,struct schcvx_counters *c,void **mem,uint64_t inactivity) {
     *pool=(struct schcvx_rx_tolerant_pool){10,2000,10,0,0,0}; memset(c,0,sizeof(*c));
     struct schcvx_rx_tolerant_cfg cfg={.wire=wire,.vnis=&vni,.vni_count=1,.max_entries=4,.retirement_capacity=8,.max_bytes=1000,.max_frame_len=200,.max_tile_len=200,.orphan_budget=4,.deadline_ns=100,.inactivity_ns=inactivity,.retention_ns=50,.pool=pool};
@@ -45,5 +49,37 @@ int main(void) {
     init(&r,&p,&c,&mem,0); p.max_entries=0; CHECK(!schcvx_rx_tolerant_receive(&r,fragments[0],lengths[0],0,&d)); CHECK(c.table_exhaustion==1); free(mem);
     init(&r,&p,&c,&mem,0); CHECK(!schcvx_rx_tolerant_receive(&r,fragments[1],lengths[1],0,&d)); r.cfg.vni_count=0; CHECK(!schcvx_rx_tolerant_receive(&r,fragments[0],lengths[0],1,&d)); CHECK(c.vni_admission_failures==1 && !p.entries); free(mem);
     init(&r,&p,&c,&mem,0); CHECK(!schcvx_rx_tolerant_receive(&r,fragments[0],lengths[0],0,&d)); schcvx_rx_tolerant_sweep(&r,100); CHECK(!schcvx_rx_tolerant_receive(&r,fragments[0],lengths[0],101,&d)); CHECK(c.late==1); schcvx_rx_tolerant_sweep(&r,150); CHECK(!schcvx_rx_tolerant_receive(&r,fragments[0],lengths[0],150,&d)); CHECK(p.entries==1); free(mem);
+    /* Oversized fragment for an existing entry: dropped as malformed, entry untouched. */
+    make(3);
+    {
+        uint8_t big[5+201]; memset(big,0x77,sizeof(big)); memcpy(big,fragments[1],5);
+        init(&r,&p,&c,&mem,0); CHECK(!schcvx_rx_tolerant_receive(&r,fragments[1],lengths[1],0,&d));
+        CHECK(!schcvx_rx_tolerant_receive(&r,big,sizeof(big),1,&d)); CHECK(c.malformed==1 && !c.integrity_failures && p.entries==1);
+        CHECK(!schcvx_rx_tolerant_receive(&r,fragments[0],lengths[0],2,&d)); CHECK(schcvx_rx_tolerant_receive(&r,fragments[2],lengths[2],3,&d)==1);
+        CHECK(c.packets_delivered==1 && c.malformed==1 && !c.integrity_failures && !p.entries); free(mem);
+    }
+    /* Sender-Abort retires an active entry; later fragments are late. */
+    {
+        uint8_t ab[16]; struct schcvx_msg am={.kind=SCHCVX_ABORT,.rule_id=rule,.dtag=42,.fcn=15}; size_t an=schcvx_encode_header(&wire,&am,ab); CHECK(an);
+        init(&r,&p,&c,&mem,0); CHECK(!schcvx_rx_tolerant_receive(&r,fragments[0],lengths[0],0,&d));
+        CHECK(!schcvx_rx_tolerant_receive(&r,ab,an,1,&d)); CHECK(c.sender_aborts_received==1 && !p.entries);
+        CHECK(!schcvx_rx_tolerant_receive(&r,fragments[1],lengths[1],2,&d)); CHECK(c.late==1 && !p.entries); free(mem);
+    }
+    /* Unknown fragmentation RuleID. */
+    {
+        uint8_t u[256]; memcpy(u,fragments[0],lengths[0]); u[0]=0x32;
+        init(&r,&p,&c,&mem,0); CHECK(!schcvx_rx_tolerant_receive(&r,u,lengths[0],0,&d)); CHECK(c.unknown_rule==1 && !c.malformed && !p.entries); free(mem);
+    }
+    /* Per-association byte cap: the second tile does not fit. */
+    init(&r,&p,&c,&mem,0); r.cfg.max_bytes=30; CHECK(!schcvx_rx_tolerant_receive(&r,fragments[0],lengths[0],0,&d));
+    CHECK(!schcvx_rx_tolerant_receive(&r,fragments[1],lengths[1],1,&d)); CHECK(c.table_exhaustion==1 && p.entries==1); free(mem);
+    /* Conflicts with stored state terminate the entry. */
+    stash(2); stash(3); stash(4);
+    init(&r,&p,&c,&mem,0); CHECK(!schcvx_rx_tolerant_receive(&r,saved[3][0],savedlen[3][0],0,&d));
+    CHECK(!schcvx_rx_tolerant_receive(&r,saved[4][0],savedlen[4][0],1,&d)); CHECK(c.integrity_failures==1 && !p.entries); free(mem);
+    init(&r,&p,&c,&mem,0); CHECK(!schcvx_rx_tolerant_receive(&r,saved[3][1],savedlen[3][1],0,&d));
+    CHECK(!schcvx_rx_tolerant_receive(&r,saved[2][0],savedlen[2][0],1,&d)); CHECK(c.integrity_failures==1 && !p.entries); free(mem);
+    init(&r,&p,&c,&mem,0); CHECK(!schcvx_rx_tolerant_receive(&r,saved[4][1],savedlen[4][1],0,&d));
+    CHECK(!schcvx_rx_tolerant_receive(&r,saved[2][0],savedlen[2][0],1,&d)); CHECK(c.integrity_failures==1 && !p.entries); free(mem);
     return 0;
 }

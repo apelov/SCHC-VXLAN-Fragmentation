@@ -28,7 +28,7 @@ int main(void) {
  }
  c.pmtu=1500; c.ip_header_len=20; c.variant=SCHCVX_COMPACT; a.variant=c.variant; c.max_frame_len=11000;
  for (unsigned k=2;k<=8;k++) { size_t len=k==2 ? 1464 : (k-1)*1463+1-9, offset=0; CHECK(!schcvx_tx_plan(&c,len,&p) && p.k==k);
-  for (unsigned i=0;i<k;i++) { size_t n; struct schcvx_msg m; CHECK(!schcvx_tx_fragment(&p,&a,1,1,prefix,frame,len,i,out,sizeof(out),&n)); CHECK(!schcvx_classify(&a,out,n,&m)); CHECK(m.fcn==schcvx_fcn_value(k,i)); CHECK(!memcmp(m.payload,packet+offset,m.payload_len)); offset+=m.payload_len; } CHECK(offset==len+9);
+  for (unsigned i=0;i<k;i++) { size_t n; struct schcvx_msg m; CHECK(!schcvx_tx_fragment(&p,&a,1,1,prefix,frame,len,i,out,sizeof(out),&n)); CHECK(c.ip_header_len+8+n<=c.pmtu); CHECK(!schcvx_classify(&a,out,n,&m)); CHECK(m.fcn==schcvx_fcn_value(k,i)); CHECK(!memcmp(m.payload,packet+offset,m.payload_len)); offset+=m.payload_len; } CHECK(offset==len+9);
  }
  CHECK(schcvx_tx_plan(&c,13,&p)==-SCHCVX_E_TX_LENGTH); CHECK(schcvx_tx_plan(&c,11001,&p)==-SCHCVX_E_TX_LENGTH);
  c.max_fragments=2; CHECK(schcvx_tx_config_check(&c)==-SCHCVX_E_CONFIG); CHECK(!schcvx_tx_emission_stopped(10,19,10)); CHECK(schcvx_tx_emission_stopped(10,20,10)); return 0;

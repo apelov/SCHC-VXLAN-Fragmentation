@@ -50,7 +50,7 @@ int schcvx_rx_tolerant_receive(struct schcvx_rx_tolerant *r,const uint8_t *data,
     size_t i; for(i=0;i<r->cfg.max_entries;i++) if(r->entries[i].used && r->entries[i].rule_id==m.rule_id && r->entries[i].dtag==m.dtag) break;
     if(m.kind==SCHCVX_ABORT) { r->counters->sender_aborts_received++; if(i<r->cfg.max_entries) finish(r,i,now); return 0; }
     size_t stride=r->cfg.max_frame_len+9; struct schcvx_rx_tolerant_pool *pool=r->cfg.pool;
-    if(m.payload_len>r->cfg.max_tile_len || m.payload_len>stride) { if(i<r->cfg.max_entries) { r->counters->integrity_failures++; finish(r,i,now); } else r->counters->malformed++; return 0; }
+    if(m.payload_len>r->cfg.max_tile_len || m.payload_len>stride) { r->counters->malformed++; return 0; }
     bool fresh=i==r->cfg.max_entries;
     if(fresh) {
         bool orphan=!m.first;

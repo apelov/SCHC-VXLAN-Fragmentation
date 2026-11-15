@@ -171,3 +171,13 @@ the TAP device and the access interface, and sets them up. Only associations wit
 touched. IP addresses are never changed. Association option names equal the daemon keys; durations are
 nanoseconds. Lab-profile defaults are provided for everything except `local_ip`, `peer_ip`, `vnis` and `tap`.
 `tests/check_docs.sh` ensures every key of `keys[]` and `globals[]` appears in backticks in the README.
+
+## Review fixes
+
+1. `rx_tolerant.c`: a fragment whose payload exceeds `max_tile_len` or the per-packet stride is dropped and counted as malformed whether or not an entry exists; an existing entry is left untouched (draft: bounds are checked before buffering; a malformed individual datagram does not terminate admitted state). The later check that terminates an entry when the accumulated packet would exceed its maximum length is unchanged (conflict with stored state). Test added to `test_rx_tolerant.c`.
+2. Test gaps against SPEC.md section 7 item 3: scripted scenarios with explicit timestamps added to `test_rx_ordered.c` (All-1 loss with expiry at exactly last regular + I and none 1 ns earlier, lost regular, duplicate, bad RCS, reordering, Sender-Abort, unauthorised VNI, unknown rule, entry and byte caps) and to `test_rx_tolerant.c` (Sender-Abort, unknown rule, byte cap, conflicting second first-marked fragment, first-marked collision with stored regular positions).
+3. `wire.h`: comment now says NULL data or len == 0 is rejected as malformed, matching `schcvx_classify`.
+4. `test_wire.c`: sentinel assertions that the classify output struct and the encoder buffer are unchanged on error.
+5. `test_tx.c`: the "every datagram fits P" check also runs for every fragment of the K=2..8 tiling loop.
+6. `nix/module.nix` and `linux/schcvx.conf.example`: `dtag_rate` default 1000000 and `dtag_burst` 10000 (the old 1000/100 throttled traffic above about 1000 fragmented frames per second); README explains that `dtag_rate` must exceed the fragmented frame rate.
+7. README: the flake must be referenced as a git flake including the repository root; a plain `path:` reference to `impl-c` fails because the build reads `draft/revised/wire-vectors.json`.

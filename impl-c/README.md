@@ -92,8 +92,8 @@ built-in defaults. Values are decimal numbers or the strings shown. **All durati
 | `max_bytes` | Retained bytes for this association (positive). |
 | `orphan_budget` | Orphan entries for this association. |
 | `dtag_start` | First DTag value; below 2^32 (compact) or 2^60 (extended). |
-| `dtag_rate` | DTag allocations per second (positive). Must cover the expected fragmented frame rate; when exhausted, fragmented sends are dropped and counted. |
-| `dtag_burst` | DTag token bucket depth (positive). |
+| `dtag_rate` | DTag allocations per second (positive). Must exceed the expected fragmented frame rate (the default of 1,000,000 per second never throttles); when exhausted, fragmented sends are dropped and counted. Parser check: `dtag_rate` x `Q` + `dtag_burst` < 2^32 for compact. |
+| `dtag_burst` | DTag token bucket depth (positive). Default 10000. |
 | `counters_file` | Path of the counters file. Associations sharing a path share one file. |
 | `counters_interval` | Counters write interval, nanoseconds (positive). |
 
@@ -131,6 +131,11 @@ repository root, because the tests read `draft/revised/wire-vectors.json`):
     nix build ./impl-c
     nix develop ./impl-c
 
+The flake must be referenced as a git flake that includes the repository root, because the package build reads
+`draft/revised/wire-vectors.json` from outside `impl-c`: use `nix build ./impl-c` inside a git checkout, or
+`git+file:///path/to/repo?dir=impl-c` or `github:apelov/SCHC-VXLAN-Fragmentation?dir=impl-c` as a flake input.
+A plain `path:` reference to the `impl-c` directory fails, since the repository root is then not part of the source.
+
 The module `services.schcvx` writes the configuration into the Nix store and runs `schcvxd -c <file>` as a
 systemd service (dynamic user; capabilities `CAP_NET_ADMIN` and `CAP_NET_RAW` only; `/dev/net/tun` allowed; runtime
 directory `/run/schcvx`). Association options use the daemon key names; most default to the lab profile, while
@@ -143,7 +148,7 @@ Example for lab server 1, step 1 (TAP only, no bridge):
 
 ```nix
 {
-  imports = [ schcvx.nixosModules.default ];   # input: path:./impl-c or the repository flake with dir=impl-c
+  imports = [ schcvx.nixosModules.default ];   # input: git+file:///path/to/repo?dir=impl-c (not a plain path: reference)
   services.schcvx = {
     enable = true;
     associations.lab = {

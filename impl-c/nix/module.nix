@@ -30,8 +30,8 @@ let
       max_bytes = mkOption { type = types.ints.positive; default = 4194304; description = "Per-association retained bytes."; };
       orphan_budget = mkOption { type = types.ints.unsigned; default = 256; description = "Per-association orphan budget."; };
       dtag_start = mkOption { type = types.ints.unsigned; default = 0; description = "First DTag value."; };
-      dtag_rate = mkOption { type = types.ints.positive; default = 1000; description = "DTag allocations per second."; };
-      dtag_burst = mkOption { type = types.ints.positive; default = 100; description = "DTag allocation burst."; };
+      dtag_rate = mkOption { type = types.ints.positive; default = 1000000; description = "DTag allocations per second; must exceed the expected fragmented frame rate."; };
+      dtag_burst = mkOption { type = types.ints.positive; default = 10000; description = "DTag allocation burst."; };
       counters_file = mkOption { type = types.str; default = "/run/schcvx/${name}.counters"; description = "Counters file; rewritten periodically and on SIGUSR1."; };
       counters_interval = mkOption { type = types.ints.positive; default = 1000000000; description = "Counters write interval in nanoseconds."; };
 

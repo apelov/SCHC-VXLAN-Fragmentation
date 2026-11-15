@@ -39,7 +39,7 @@ int schcvx_fcn_countdown(uint8_t fcn);
 int schcvx_fcn_value(unsigned k, unsigned position);
 /* Returns zero on success, negative error otherwise; out unchanged on error.
  * Unfragmented payload includes the C/D RuleID. Other payloads are tiles.
- * NULL data is allowed only with len == 0. */
+ * NULL data or len == 0 is rejected as malformed. */
 int schcvx_classify(const struct schcvx_assoc_wire *a, const uint8_t *data,
                     size_t len, struct schcvx_msg *out);
 /* Writes only a fragment header, never a tile. Caller supplies space for the
