@@ -12,6 +12,8 @@ __pycache__/
 # Draft build outputs (produced by draft/build.sh)
 draft/out/
 draft/.refcache/
+draft/AlternativeDesign/out/
+draft/AlternativeDesign/.refcache/
 
 # C implementation build directory
 build-c/

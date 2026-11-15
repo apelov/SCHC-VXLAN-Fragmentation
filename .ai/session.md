@@ -41,3 +41,8 @@ Relay the reviewer's findings, then apply any agreed fixes to the draft sections
 - User authorized all review fixes. Added explicit 8-bit NoCompress C/D RuleID; retained compact/extended F/R layouts. Updated CRC coverage, MTU examples and first-fragment parsing.
 - Defined emission bound S, delivery bound B, arrival span W=S+B, separate ordered/tolerant lifetime bounds, retirement and restart drain procedures. Clarified validation, association lookup and informative appendix.
 - Added standard-library wire checker and JSON vectors; all permutations K=2..8, loss, duplicates, corrupt and malformed cases pass. XML/text/HTML build passes. Existing pytest suite unavailable (pytest not installed); no production timed receiver or independent semantic validation claimed.
+
+## Draft reorganization (2026-11-15)
+- Moved the base/original draft (along with sections/ and generated/) to `draft/AlternativeDesign/`. Added `draft/AlternativeDesign/build.sh`.
+- Promoted the revised draft to the main draft at `draft/draft-vladyka-schc-vxlan-fragmentation-00.md`.
+- Verified that both drafts build cleanly (`out/draft-vladyka-schc-vxlan-fragmentation-00.{txt,html}`) and that test vectors continue to pass.
