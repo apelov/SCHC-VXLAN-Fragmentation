@@ -7,7 +7,7 @@ This version is a framing proposal, presented to seek working group feedback and
 The requirements are:
 
 * Preserve the full input Ethernet frame as presented to the tunnel, including any tags carried by the tunnel, and excluding the Ethernet FCS.
-* Keep standard VXLAN for frames that fit.
+* Keep standard VXLAN for frames that fit. TODO All frames must use the same encapsulation, even if they do not need to be fragemented.
 * Deliver a fragmented frame only after successful reassembly, with bounded waiting time and bounded receiver state.
 * Tolerate reordering of fragments.
 * Use no acknowledgments and no retransmissions in the data path.
@@ -47,7 +47,7 @@ RCS:
 : The discard deadline. A reassembly entry expires at the first arrival time plus Δ.
 
 L:
-: A configured upper bound on the arrival spread of all copies of fragments of one frame, including duplicates. Retirement records are kept for L after retirement.
+: A configured upper bound on the arrival spread of all copies of fragments of one frame.
 
 Peer association:
 : The configured relationship between a local tunnel endpoint and a remote VTEP, with its RuleID, PMTU, port, and capabilities.
@@ -64,7 +64,7 @@ A sender behaves as follows:
 
 Scope is unicast between VTEPs. BUM traffic is in scope only through ingress replication to individually provisioned unicast peers. Each copy uses that peer's capabilities and PMTU.
 
-The extension carries the semantics of the Ethernet overlay VNI but uses its own UDP payload format. It does not fragment an already encapsulated VXLAN packet at IP. The configured UDP destination port selects this format. The sender uses the same source UDP port and outer five-tuple for every fragment of a frame, so that ordinary flow-hash affinity applies, and derives the source port from the inner frame as it does for ordinary VXLAN (Section 5 of {{RFC7348}}). The receiver identifies a configured peer independently of the source UDP port. The protocol tolerates reordering even when path affinity fails.
+The extension carries the semantics of the Ethernet overlay VNI but uses its own UDP payload format. It does not fragment an already encapsulated VXLAN packet at IP. The configured UDP destination port selects this format. The sender uses the same source UDP port and outer five-tuple for every fragment of a frame, so that ordinary flow-hash affinity applies. The receiver identifies a configured peer independently of the source UDP port. The protocol tolerates reordering even when path affinity fails.
 
 NAT is outside the target deployment. Where one is present: a rewritten source port does not matter; a rewritten outer source address must be the address configured for the peer association; and because the two directions do not form one symmetric flow, the destination port needs a static mapping.
 

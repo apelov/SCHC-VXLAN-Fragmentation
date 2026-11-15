@@ -28,7 +28,7 @@ For each Ethernet frame (as presented to the tunnel, without FCS) the sender pro
 
 A configuration MUST be rejected if the minimum configured PMTU cannot carry the maximum frame length in the maximum number of fragments.
 
-All fragments of a frame use the same outer five-tuple, in particular the same source UDP port. The sender derives that port from the inner frame as it does for ordinary VXLAN ({{RFC7348}}, Section 5), to preserve flow-hash affinity. The receiver identifies the peer independently of the source UDP port, and the protocol tolerates reordering even when path affinity fails.
+All fragments of a frame use the same outer five-tuple, in particular the same source UDP port. The sender derives that port in an implementation-specific way, for example from the inner frame as it does for ordinary VXLAN ({{RFC7348}}, Section 5), to preserve flow-hash affinity. The receiver identifies the peer independently of the source UDP port, and the protocol tolerates reordering even when path affinity fails.
 
 For IPv4 the sender sets DF. For IPv6 the sender does not use source fragmentation.
 

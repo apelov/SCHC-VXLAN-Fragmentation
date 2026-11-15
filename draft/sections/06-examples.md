@@ -43,6 +43,6 @@ An implementation can start with a maximum of two fragments and a two-bit receiv
 
 * Exact-fit and one-byte-over frame sizes for IPv4 and IPv6, including tagged Ethernet, verifying that every emitted IP packet fits the PMTU.
 * Both arrival orders, every single-fragment loss, identical and conflicting duplicates, malformed or inconsistent headers, bad RCS, deadline equality, late arrival after retirement, and Frame ID uniqueness across restart.
-* Normal VXLAN forwarding, unsupported peers, ingress replication, table exhaustion, and a change of configured PMTU.
+* Normal VXLAN forwarding (TODO - remove), unsupported peers, ingress replication, table exhaustion, and a change of configured PMTU.
 * Benchmarks of a normal/fragmented mix, of frames just over the VXLAN threshold, and of the maximum frame size, reporting frame and packet rates, wire bit rate, latency percentiles and drops by cause, and stating whether offered load is ingress frame rate or egress wire capacity.
 * Counters for completed frames, expiration, late fragments, duplicates, integrity failure, malformed input, peer admission failure, and table exhaustion.
