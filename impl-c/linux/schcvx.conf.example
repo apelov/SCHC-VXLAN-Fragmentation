@@ -1,0 +1,34 @@
+# Numeric durations are nanoseconds; rates are DTags per second.
+[global]
+max_entries = 1024
+max_bytes = 4194304
+orphan_budget = 256
+[association lab]
+local_ip = 192.0.2.1
+peer_ip = 192.0.2.2
+udp_port = 60789
+src_port = 60789
+variant = compact
+fr_rule_id = 1
+cd_rule_id = 0
+vnis = 100
+tap = schc0
+pmtu = 1280
+h_ip = 20
+max_frame_len = 9014
+max_fragments = 8
+receiver = ordered
+S = 1000000
+B = 10000000
+I = 10000000
+Delta = 20000000
+R = 100000000
+Q = 200000000
+max_entries = 1024
+max_bytes = 4194304
+orphan_budget = 256
+dtag_start = 0
+dtag_rate = 1000
+dtag_burst = 100
+counters_file = /run/schcvx/counters
+counters_interval = 1000000000

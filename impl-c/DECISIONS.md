@@ -101,3 +101,14 @@ Run with sanitizers: `meson setup build-asan impl-c -Db_sanitize=address,undefin
 When libFuzzer is supported, run `build-asan/tests/fuzz_classify`,
 `build-asan/tests/fuzz_ordered`, or `build-asan/tests/fuzz_tolerant` directly
 with libFuzzer arguments and an optional corpus directory.
+
+## WP09: portable daemon layer
+
+Configuration numeric time values are nanoseconds; DTag rate is identifiers per
+second and burst is a separate required key. The allocator requires both values
+and the specification does not define them. The first configured VNI is used for
+transmission, while all configured VNIs are admitted on receive. The global
+limits are required keys `max_entries`, `max_bytes`, and `orphan_budget`.
+Per-association retirement capacity equals max_entries. The portable layer owns
+receiver storage and invokes synchronous callbacks; the I/O implementation must
+copy datagrams if it queues them, and must provide monotonic time between sends.
