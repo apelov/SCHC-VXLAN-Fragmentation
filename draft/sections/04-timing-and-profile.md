@@ -53,7 +53,7 @@ This section describes the prototype operating point. It is not a claim of gener
 
 ## Fragment Count
 
-The profile starts with a configured maximum of two fragments. TODO - why??? This is valid where the minimum configured PMTU carries the maximum allowed frame in two slices, for example an Ethernet-1500 service over a 1500-byte PMTU. The receiver can then keep a two-bit receive mask and bounded per-worker state.
+The profile starts with a configured maximum of two fragments. A two-fragment maximum is the simplest nontrivial case: it is valid wherever the minimum configured PMTU can carry the maximum allowed frame in two slices, for example an Ethernet-1500 service over a 1500-byte PMTU, and it lets the receiver keep a two-bit receive mask and bounded per-worker state. Because every frame uses this format, a single-fragment frame (count 1) is simply the common case below that maximum.
 
 ## Minimum-PMTU Validation
 
@@ -64,7 +64,7 @@ A configuration MUST be rejected if the minimum configured PMTU cannot carry the
 An implementation provides the following configured values:
 
 * the maximum frame length, and the frame-length range accepted;
-* the maximum fragment count (2 in the profile above), and the minimum count of 2; TODO - why?
+* the maximum fragment count (2 in the profile above); the minimum count is 1, since every frame, including one that fits in a single slice, uses this format;
 * the receiver's maximum slice length, a local bound that does not exceed the maximum frame length;
 * caps on incomplete entries and retained bytes per peer and globally; and
 * capacity for retirement records at the admitted rate, or a reservation of a retirement slot at admission with admission stopped within an exhausted scope until space returns.

@@ -35,7 +35,7 @@ Every fragment starts with a 14-byte header, followed by a nonempty slice of the
 | 1 | 3 | VNI, with the same meaning as in the associated VXLAN deployment |
 | 4 | 8 | Frame ID, unique across active and recently retired frames within the configured peer association and VNI |
 | 12 | 1 | Fragment index, zero-based |
-| 13 | 1 | Fragment count, 2 through the configured maximum |
+| 13 | 1 | Fragment count, 1 through the configured maximum |
 | 14 | variable | Nonempty slice of the original frame |
 | End of final fragment | 4 | RCS, present only if index equals count minus one |
 {: #tab-fields title="Fragment fields"}

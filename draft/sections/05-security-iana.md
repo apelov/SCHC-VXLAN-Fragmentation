@@ -8,9 +8,9 @@ This extension is configured, not negotiated. An implementation MUST provide con
 * the configured PMTU per peer association, from which the slice budget `C` is derived;
 * the receiver limits: the discard deadline `Δ`, the arrival-spread bound `L` used for retirement records, the maximum number of fragments per frame (initially two), the maximum slice length, and the capacity of active and retired entries per scope.
 
-Peer capability for the extension has to be provisioned before a sender emits oversized frames. How a peer's capability is learned is an Open Issue; this version relies on static provisioning.
+Peer capability for the extension has to be provisioned before a sender emits any frame under this format. How a peer's capability is learned is an Open Issue; this version relies on static provisioning.
 
-An implementation SHOULD expose counters, kept per peer association and VNI where practical, for: frames fragmented; oversized frames dropped because the extension is unavailable or the limits cannot carry them; frames completed; entries expired with missing fragments; fragments received after expiry or retirement (late); duplicate fragments; integrity (RCS) failures; malformed input, including zero UDP checksums; peer or VNI admission failures; and table exhaustion. Expiry with missing fragments and late arrival are reported separately, as described in the discard deadline section.
+An implementation SHOULD expose counters, kept per peer association and VNI where practical, for: frames sent under this format; frames dropped because the configured limits cannot carry them; frames completed; entries expired with missing fragments; fragments received after expiry or retirement (late); duplicate fragments; integrity (RCS) failures; malformed input, including zero UDP checksums; peer or VNI admission failures; and table exhaustion. Expiry with missing fragments and late arrival are reported separately, as described in the discard deadline section.
 
 # Security Considerations
 

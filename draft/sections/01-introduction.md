@@ -1,14 +1,14 @@
 # Introduction
 
-VXLAN {{RFC7348}} carries Ethernet frames in UDP datagrams. When the encapsulated frame exceeds the underlay IP path MTU (PMTU), standard VXLAN cannot carry it, and VTEPs MUST NOT fragment VXLAN packets (Section 4.3 of {{RFC7348}}). This document specifies an extension that fragments such a frame into several UDP datagrams between a pair of VTEPs, reassembles it at the receiver, and delivers it only after successful reassembly. General guidance on UDP usage and on MTU issues with tunnels is in {{RFC8085}} and {{RFC4459}}.
+VXLAN {{RFC7348}} carries Ethernet frames in UDP datagrams. When the encapsulated frame exceeds the underlay IP path MTU (PMTU), standard VXLAN cannot carry it, and VTEPs MUST NOT fragment VXLAN packets (Section 4.3 of {{RFC7348}}). This document specifies an extension that carries every frame between a pair of VTEPs under one format, split into one or more UDP datagrams as needed, reassembles it at the receiver, and delivers it only after successful reassembly. General guidance on UDP usage and on MTU issues with tunnels is in {{RFC8085}} and {{RFC4459}}.
 
 This version is a framing proposal, presented to seek working group feedback and adoption. Its wire format is provisional and several parameters are left as open issues.
 
 The requirements are:
 
 * Preserve the full input Ethernet frame as presented to the tunnel, including any tags carried by the tunnel, and excluding the Ethernet FCS.
-* Keep standard VXLAN for frames that fit. TODO All frames must use the same encapsulation, even if they do not need to be fragemented.
-* Deliver a fragmented frame only after successful reassembly, with bounded waiting time and bounded receiver state.
+* Use the same encapsulation for every frame on a peer association configured for this extension, whether or not the frame needs to be split into more than one fragment.
+* Deliver a frame only after successful reassembly, with bounded waiting time and bounded receiver state.
 * Tolerate reordering of fragments.
 * Use no acknowledgments and no retransmissions in the data path.
 
@@ -56,9 +56,9 @@ Transmit placement is after bridge forwarding and before tunnel encapsulation. R
 
 A sender behaves as follows:
 
-* If the frame fits, it emits RFC 7348 VXLAN.
-* If the frame exceeds the VXLAN payload budget and both peers are configured for the extension, it encapsulates each slice in a separate UDP datagram sent to a distinct, configured destination port.
-* If the extension is unavailable or the configured limits cannot carry the frame, it drops the oversized frame and increments a local counter (drop-and-count).
+* For a peer association configured for this extension, every frame is encapsulated under this format and sent to the configured destination port, split into one or more fragments as needed; a frame that would also fit ordinary VXLAN is simply sent as a single fragment.
+* For a peer association not configured for this extension, the sender emits RFC 7348 VXLAN and MUST NOT send a frame that exceeds the ordinary VXLAN payload budget.
+* If the configured limits cannot carry the frame, the sender drops the oversized frame and increments a local counter (drop-and-count).
 
 Scope is unicast between VTEPs. BUM traffic is in scope only through ingress replication to individually provisioned unicast peers. Each copy uses that peer's capabilities and PMTU.
 
@@ -68,7 +68,7 @@ NAT is outside the target deployment. Where one is present: a rewritten source p
 
 The wire format and all values in this document are provisional prototype choices and are subject to change. The UDP port is locally configured in this version.
 
-Open Issue: UDP demultiplexing, header versioning, any IANA request, and the need for peer capability provisioning before oversized frames are sent are not settled in this version.
+Open Issue: UDP demultiplexing, header versioning, any IANA request, and the need for peer capability provisioning before any frame is sent under this format are not settled in this version.
 
 # Relationship to SCHC
 
