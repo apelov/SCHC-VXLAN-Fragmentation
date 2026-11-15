@@ -76,3 +76,9 @@ caller must account for the emission interval in its quarantine rate margin.
 
 SPEC 4.3 says stop when the emission interval would exceed S, whereas the draft
 requires stopping when S is reached. The implementation follows the draft.
+
+## WP06: ordered receiver and shared state
+
+One receiver instance represents one peer association; entries and retirement records are keyed by fragmentation RuleID and DTag. The caller validates peer association and UDP checksum before invoking the receiver, supplies monotonically nondecreasing receive timestamps, and owns configuration arrays, counters and aligned storage. Delivery views borrow the datagram or receiver storage and are valid until the next receiver operation. Deadlines saturate at UINT64_MAX on arithmetic overflow. Expired entries retire at their deadline, even if a sweep runs later. The retirement table reserves a slot for every active entry.
+
+Packet storage uses a fixed maximum-sized slot per configured entry; max_bytes limits actual retained bytes. If a fragment cannot fit the retained-byte budget, it is dropped and table exhaustion is counted; an existing entry remains until completion or timeout. A Sender-Abort without an active entry is counted but does not reserve a retirement record. Counter names are snake_case derived from SPEC 4.6. Formatting returns the required byte count excluding the NUL.

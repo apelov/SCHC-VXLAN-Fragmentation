@@ -1,4 +1,4 @@
-test_sources = ['test_crc32c.c', 'test_wire.c', 'test_dtag.c']
+test_sources = ['test_crc32c.c', 'test_wire.c', 'test_dtag.c', 'test_retire.c', 'test_rx_ordered.c']
 foreach source : test_sources
   name = source.substring(5).split('.')[0]
   exe = executable('test_' + name, source, dependencies: schcvx_core_dep)
