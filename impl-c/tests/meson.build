@@ -44,3 +44,6 @@ config_exe = executable('test_config', 'test_config.c', dependencies: schcvx_dae
 test('config', config_exe, args: [meson.project_source_root() / 'linux/schcvx.conf.example'])
 daemon_offline_exe = executable('test_daemon_offline', 'test_daemon_offline.c', dependencies: schcvx_daemon_dep)
 test('daemon-offline', daemon_offline_exe, args: [meson.project_source_root() / 'linux/schcvx.conf.example'])
+
+test('docs', find_program('bash'),
+  args: [files('check_docs.sh'), meson.project_source_root() / 'linux/config.c', meson.project_source_root() / 'README.md'])

@@ -150,3 +150,24 @@ software (zero or wrong is dropped, as the draft requires). Fix: `run.sh` runs
 NICs fill the checksum in hardware, so only the veth test is affected.
 
 Server run (2026-11-15, server 1): all required steps passed for both receivers, confirming the assumptions above. Ordered receiver lost 7 of 20 reordered pings, as expected; the tolerant receiver lost none, and counted 12 duplicates under netem duplicate 50%.
+
+## WP11/WP12: NixOS packaging and documentation
+
+Package source is the repository root restricted with `lib.fileset` to `impl-c` plus
+`draft/revised/wire-vectors.json` (the Meson tests read that file at `../../draft` from
+`impl-c/tests`), with `sourceRoot = source/impl-c`; the build passes `-Dwerror=false` so a newer
+compiler cannot fail the package on warnings, and `doCheck = true` runs `meson test`.
+
+Service user: the daemon needs only `CAP_NET_ADMIN` (TUNSETIFF, MTU, link up) and `CAP_NET_RAW` (raw
+socket); it opens `/dev/net/tun` read-write and writes counters with mkstemp and rename in the counters
+directory. The module therefore uses `DynamicUser = true` with those two ambient capabilities,
+`DevicePolicy = closed` plus `DeviceAllow = /dev/net/tun rw`, and `RuntimeDirectory = schcvx` (owned by the
+dynamic user, default counters path `/run/schcvx/<name>.counters`). This is untested; if the server
+shows a permission failure, the fallback is `User = root` with the same capability bounding set.
+
+Bridge setup is an `ExecStartPost` with the `+` prefix (full privileges, since the daemon user has no
+rights over bridges) that waits up to 10 s for each TAP device, creates the bridge if missing, enslaves
+the TAP device and the access interface, and sets them up. Only associations with `bridge` set are
+touched. IP addresses are never changed. Association option names equal the daemon keys; durations are
+nanoseconds. Lab-profile defaults are provided for everything except `local_ip`, `peer_ip`, `vnis` and `tap`.
+`tests/check_docs.sh` ensures every key of `keys[]` and `globals[]` appears in backticks in the README.
