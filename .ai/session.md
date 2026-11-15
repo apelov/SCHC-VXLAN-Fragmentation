@@ -32,6 +32,11 @@ Relay the reviewer's findings, then apply any agreed fixes to the draft sections
 - Main profile describes RFC 8724 ordered receiver; reordering-tolerant receiver is explicitly an extension with standards status open. Direct NoCompress mapping and RFC 7348 interpretation remain open.
 - Built XML, text and HTML using kramdown-rfc and xml2rfc. idnits unavailable; semantic review is not independent, and old model applies to appendix only.
 
+## Option 1: every frame on the binding (2026-11-15)
+- Revised draft: on a configured association every frame uses the binding. A SCHC Packet that fits (E+9 <= P-H-8) is sent unfragmented, identified by the 8-bit NoCompress C/D RuleID (prefix-free with F/R RuleIDs); larger packets are fragmented (K=2..8). Unfragmented packets: min 23 bytes, no DTag, no retirement, duplicates not suppressed. Unconfigured associations stay plain VXLAN and MUST NOT send oversize frames.
+- check_vectors.py gained classify/send, boundary checks (1463/1443/1243) and an 'unfragmented' vector; existing vectors unchanged.
+- Andrii's count-1 change to the old draft (draft/sections) leaves src/schcvx rejecting count < 2; not fixed.
+
 ## Revised draft review repairs
 - User authorized all review fixes. Added explicit 8-bit NoCompress C/D RuleID; retained compact/extended F/R layouts. Updated CRC coverage, MTU examples and first-fragment parsing.
 - Defined emission bound S, delivery bound B, arrival span W=S+B, separate ordered/tolerant lifetime bounds, retirement and restart drain procedures. Clarified validation, association lookup and informative appendix.

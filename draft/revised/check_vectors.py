@@ -32,6 +32,36 @@ def decode(data, bits=32):
     return rule, tag, fcn, payload, int.from_bytes(data[h:h+4], 'big') if fcn == 15 else None
 
 
+CD_RULE = 0          # NoCompress C/D RuleID (eight bits)
+FR_RULE = 1          # fragmentation RuleID used in the vectors
+VXLAN_HDR = bytes.fromhex('0800000000303900')   # I flag, VNI 12345
+
+
+def classify(data, bits=32):
+    """Association already selected; first eight bits pick packet or fragment."""
+    if len(data) >= 1 and data[0] == CD_RULE:
+        if len(data) < 1 + 8 + 14:
+            raise ValueError('short unfragmented packet')
+        return 'packet', data
+    rule = decode(data, bits)[0]
+    if rule != FR_RULE:
+        raise ValueError('unknown rule')
+    return 'fragment', data
+
+
+def send(frame, p, h, bits=32):
+    """Sender decision: unfragmented SCHC Packet if it fits, else K tiles."""
+    packet = bytes([CD_RULE]) + VXLAN_HDR + frame
+    if len(packet) <= p - h - 8:
+        return [packet]
+    c = p - h - 8 - ((5 if bits == 32 else 9) + 4)
+    k = -(-len(packet) // c)
+    assert 2 <= k <= 8
+    fcns = [8 + k - 2] + list(range(k - 3, -1, -1)) + [15]
+    return [encode(FR_RULE, 1, f, packet[i*c:(i+1)*c], bits,
+                   crc32c(packet) if f == 15 else None) for i, f in enumerate(fcns)]
+
+
 def reassemble(messages, bits=32):
     slots = {}
     identity = None
@@ -101,9 +131,26 @@ def main():
             rejects(lambda: decode(encode(1, 1, 15, b'\0'*extra, bits), bits))
         for f in (6, 7):
             rejects(lambda: decode(encode(1, 1, f, b'x', bits), bits))
+    # Unfragmented SCHC Packets: classification, minimum length, size boundary.
+    for bits in (32, 60):
+        for p, h, fit in [(1500, 20, 1463), (1500, 40, 1443), (1280, 20, 1243)]:
+            at = send(bytes(fit), p, h, bits)
+            assert len(at) == 1 and classify(at[0], bits)[0] == 'packet'
+            assert h + 8 + len(at[0]) == p
+            over = send(bytes(fit + 1), p, h, bits)
+            assert len(over) == 2
+            assert all(classify(m, bits)[0] == 'fragment' for m in over)
+            assert all(h + 8 + len(m) <= p for m in over)
+            assert reassemble(over, bits) == bytes([CD_RULE]) + VXLAN_HDR + bytes(fit + 1)
+        rejects(lambda: classify(bytes([CD_RULE]) + VXLAN_HDR + bytes(13), bits))
+        rejects(lambda: classify(encode(2, 1, 8, bytes(9), bits), bits))
+    lab = send(bytes(1514), 1280, 20)
+    assert [len(m) - 5 for m in lab[:1]] == [1243] and len(lab[1]) - 9 == 280
     frame = bytes(i % 256 for i in range(1514))
     packet = b'\0' + bytes.fromhex('0800000000303900') + frame
-    vectors = {}
+    vectors = {'unfragmented': {
+        'note': 'NoCompress C/D RuleID 0, VXLAN header, 64-byte frame; P=1500, H=20',
+        'udp_payload_hex': send(bytes(i % 256 for i in range(64)), 1500, 20)[0].hex()}}
     for bits in (32, 60):
         h = 5 if bits == 32 else 9
         c = 1500-20-8-h-4
@@ -125,7 +172,7 @@ def main():
         target.write_text(rendered)
     else:
         assert target.read_text() == rendered, 'stale vectors'
-    print('PASS: both variants, all K=2..8 permutations, loss, duplicates, corruption, malformed input and MTU vectors')
+    print('PASS: unfragmented packets and boundaries, both variants, all K=2..8 permutations, loss, duplicates, corruption, malformed input and MTU vectors')
 
 
 if __name__ == '__main__':

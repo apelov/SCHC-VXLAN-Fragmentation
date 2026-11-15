@@ -1,4 +1,8 @@
 {
+  "unfragmented": {
+    "note": "NoCompress C/D RuleID 0, VXLAN header, 64-byte frame; P=1500, H=20",
+    "udp_payload_hex": "000800000000303900000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f"
+  },
   "32": {
     "packet_bytes": 1523,
     "rcs": "94dc7a0e",
