@@ -37,6 +37,30 @@ The port, VNI and timer values are lab choices, not values from the draft. They 
 | Bounds (lab only) | S = 1 ms, B = 10 ms (so W = 11 ms); inactivity I = 10 ms; tolerant deadline Delta = 20 ms; retirement R = 100 ms; quarantine Q = 200 ms |
 | DTag | One counter per association and fragmentation RuleID, start value 0; after start, no fragmented packet is sent until Q has elapsed (draft "DTag Reuse and Restart") |
 
+## 3a. Lab topology
+
+```
+computer A ── server 1 (C) ══ 1280-byte IPv4 underlay ══ server 2 (Rust) ── computer B
+```
+
+| | Server 1 | Server 2 |
+| --- | --- | --- |
+| Administered by | Alexander Pelov | Andrii Vladyka |
+| Implementation | C (`impl-c/`) | Rust (`impl-rust/`) |
+| Underlay interface | `enp3s0` | chosen by Andrii |
+| Underlay address | 192.168.11.2/24 | 192.168.11.1/24 |
+| TAP test address (step 1) | 10.100.0.1/24 | 10.100.0.2/24 |
+| Access port to the computer (step 2) | `enp0s20f0u2` | chosen by Andrii |
+
+Bring-up order:
+
+1. **TAP only.** Each daemon creates its TAP device and the test address is set on it; no physical access port is bridged. Ping 10.100.0.1 to 10.100.0.2 with `ping -M do -s 1472` (full-size frames, two fragments each way).
+2. **Bridge the access port.** Bridge the TAP device with the access port so the computers join the overlay. On server 1 the access port also carries the management SSH session, so the change is applied with an automatic rollback.
+
+Because each server runs a different implementation, every lab run is a mixed C–Rust run. Each side first passes its own same-implementation tests outside the lab (for C: two Linux network namespaces on server 1).
+
+During tests, both sides capture on their underlay interface (`tcpdump -i <underlay> -w <file> udp port 60789`).
+
 ## 4. Conformance before interop
 
 - The encoder must reproduce every `udp_payload_hex` in `draft/revised/wire-vectors.json` byte for byte (frame byte i = i mod 256, DTag 1, fragmentation RuleID 1).
@@ -45,7 +69,7 @@ The port, VNI and timer values are lab choices, not values from the draft. They 
 
 ## 5. Test matrix
 
-Run each test in four combinations: Rust on both servers, C on both servers, Rust sending to C, and C sending to Rust.
+In the lab, run each test in both directions (C sending to Rust and Rust sending to C). Same-implementation runs happen outside the lab, before the lab runs.
 
 | # | Test | Command on the end hosts | Pass if |
 | --- | --- | --- | --- |
