@@ -45,4 +45,5 @@ Relay the reviewer's findings, then apply any agreed fixes to the draft sections
 ## Draft reorganization (2026-11-15)
 - Moved the base/original draft (along with sections/ and generated/) to `draft/AlternativeDesign/`. Added `draft/AlternativeDesign/build.sh`.
 - Promoted the revised draft to the main draft at `draft/draft-vladyka-schc-vxlan-fragmentation-00.md`.
+- Added unnumbered Acknowledgements section thanking Laurent Toutain.
 - Verified that both drafts build cleanly (`out/draft-vladyka-schc-vxlan-fragmentation-00.{txt,html}`) and that test vectors continue to pass.
