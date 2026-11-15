@@ -5,7 +5,7 @@ Two independent implementations of the revised draft are built and tested agains
 | Implementation | Language | Owner | Tooling | Directory |
 | --- | --- | --- | --- | --- |
 | Userspace | Rust | Andrii Vladyka | Claude | `impl-rust/` |
-| DPDK data plane | C | Alexander Pelov | Codex | `impl-c/` |
+| Userspace (DPDK later) | C | Alexander Pelov | Codex | `impl-c/` (spec: `impl-c/SPEC.md`) |
 
 ## 1. Authority
 
@@ -20,7 +20,7 @@ Two independent implementations of the revised draft are built and tested agains
 
 ## 3. Common lab profile (first interop round)
 
-The port, VNI and timer values are lab choices, not values from the draft.
+The port, VNI and timer values are lab choices, not values from the draft. They satisfy the draft's constraints: R >= W = S + B, Delta >= W, and Q > B + D + R with D = max(W + I, Delta) = 21 ms.
 
 | Parameter | Value |
 | --- | --- |
@@ -34,8 +34,8 @@ The port, VNI and timer values are lab choices, not values from the draft.
 | UDP checksum | Always generated; a zero or wrong checksum is dropped, IPv4 included |
 | Source port | Same for all fragments of a packet |
 | Receiver | Ordered RFC 8724 receiver by default; tolerant receiver behind a configuration switch |
-| Timers (lab only) | Inactivity I = 10 ms; tolerant deadline Delta = 10 ms; retirement R = 100 ms |
-| DTag | One counter per association, starting at a random value |
+| Bounds (lab only) | S = 1 ms, B = 10 ms (so W = 11 ms); inactivity I = 10 ms; tolerant deadline Delta = 20 ms; retirement R = 100 ms; quarantine Q = 200 ms |
+| DTag | One counter per association and fragmentation RuleID, start value 0; after start, no fragmented packet is sent until Q has elapsed (draft "DTag Reuse and Restart") |
 
 ## 4. Conformance before interop
 

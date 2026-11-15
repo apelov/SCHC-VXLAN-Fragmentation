@@ -1,6 +1,8 @@
 # SCHC VXLAN Fragmentation — DPDK Implementation Specification
 
-Status: proposed input for a new pipeline generation (use as the frozen design of the implementation repository or subtree).
+Status: **superseded for now.** This document describes the earlier indexed 14-byte format, not the revised No-ACK draft. The C implementation starts in userspace from `impl-c/SPEC.md`; this DPDK document will be rewritten for the revised draft when the DPDK step begins. Its architecture (portable core plus DPDK I/O layer) still applies.
+
+Original status: proposed input for a new pipeline generation (use as the frozen design of the implementation repository or subtree).
 Pinned to: draft `draft-vladyka-schc-vxlan-fragmentation-00` at repository commit `8485aac`, and the Python reference model in `src/schcvx/` at the same commit.
 
 ## 0. Authority and rules
