@@ -1,7 +1,7 @@
 # schcvxd: SCHC VXLAN fragmentation in C
 
 A userspace C implementation of the revised draft
-`draft/revised/draft-vladyka-schc-vxlan-fragmentation-00-revised.md`, written for functional and
+`draft/draft-vladyka-schc-vxlan-fragmentation-00.md`, written for functional and
 interoperability testing against the Rust implementation. It is not a production data plane:
 one thread, kernel TAP and sockets, no DPDK.
 

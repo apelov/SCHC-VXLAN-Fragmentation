@@ -9,7 +9,7 @@ Two independent implementations of the revised draft are built and tested agains
 
 ## 1. Authority
 
-- The only specification is `draft/revised/draft-vladyka-schc-vxlan-fragmentation-00-revised.md` at commit `3e72a86` (Option 1: every frame on a configured association uses the binding; a SCHC Packet that fits is sent unfragmented).
+- The only specification is `draft/draft-vladyka-schc-vxlan-fragmentation-00.md` (moved there from `draft/draft-vladyka-schc-vxlan-fragmentation-00.md` in `cbc9eaf`) at commit `3e72a86` (Option 1: every frame on a configured association uses the binding; a SCHC Packet that fits is sent unfragmented).
 - If the draft is unclear or wrong, fix the draft first, then both implementations. Do not settle a question in code only.
 
 ## 2. Independence

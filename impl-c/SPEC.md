@@ -1,7 +1,7 @@
 # SCHC VXLAN fragmentation: userspace C implementation specification
 
 Status: build specification for the C implementation (owner Alexander Pelov, developed with Codex). DPDK is a later step and is out of scope here.
-Pinned to: `draft/revised/draft-vladyka-schc-vxlan-fragmentation-00-revised.md` at commit `3e72a86`, and the interop plan in `interop/README.md`.
+Pinned to: `draft/draft-vladyka-schc-vxlan-fragmentation-00.md` (moved there from `draft/draft-vladyka-schc-vxlan-fragmentation-00.md` in `cbc9eaf`) at commit `3e72a86`, and the interop plan in `interop/README.md`.
 
 ## 0. Authority and rules
 

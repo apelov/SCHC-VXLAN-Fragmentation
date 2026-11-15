@@ -1,7 +1,7 @@
 # schcvx: Wireshark dissector for SCHC VXLAN fragmentation
 
 `schcvx.lua` dissects the UDP payload of the SCHC VXLAN binding in
-`draft/revised/draft-vladyka-schc-vxlan-fragmentation-00-revised.md`. It is written from the draft
+`draft/draft-vladyka-schc-vxlan-fragmentation-00.md`. It is written from the draft
 only and is independent of the C and Rust implementations. It targets Lua 5.4 as shipped with
 Wireshark 4.x (tested with 4.6.9).
 

@@ -47,3 +47,9 @@ Relay the reviewer's findings, then apply any agreed fixes to the draft sections
 - Promoted the revised draft to the main draft at `draft/draft-vladyka-schc-vxlan-fragmentation-00.md`.
 - Added unnumbered Acknowledgements section thanking Laurent Toutain.
 - Verified that both drafts build cleanly (`out/draft-vladyka-schc-vxlan-fragmentation-00.{txt,html}`) and that test vectors continue to pass.
+
+## Hackathon close (2026-11-15)
+- Hackathon work complete. Start from `HANDOFF.md` (state, lab, verification, gotchas, open items) and `docs/POST-HACKATHON-ANALYSIS.md` (process review).
+- C ↔ Rust interop works computer to computer over the 1280-byte underlay; after the O(1) table rewrite: 532 Mbit/s reverse, 732 forward. Results in `interop/results/2026-11-15-c-to-rust-step2-and-throughput.md`.
+- Netem reorder run (server 1 egress, 50% delayed 5 ms): 344 Mbit/s average, 212,686 retransmissions; rerun matrix with tolerant receivers pending.
+- Server 1 runtime state (daemon, br-schc) does not survive a reboot.
