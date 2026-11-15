@@ -16,7 +16,7 @@ from schcvx.receiver import (
     Receiver,
     ReceiverConfig,
 )
-from schcvx.wire import RULE_ID_0, Fragment, encode
+from schcvx.wire import RULE_ID_0, Fragment, decode, encode
 
 PEER_A = "peerA"
 PEER_B = "peerB"
@@ -510,3 +510,19 @@ def test_slice_over_max_slice_len_is_malformed():
 
     assert isinstance(result, MALFORMED)
     assert r.counters["malformed"] == 1
+
+
+def test_final_duplicate_with_different_rcs_is_conflicting():
+    r = Receiver(_config(), FakeClock())
+    frags = _fragments(b"\x07" * 25, 15)
+
+    r.receive(PEER_A, frags[1])
+    final = decode(frags[1])
+    other_rcs = Fragment(
+        rule_id=RULE_ID_0, vni=VNI, frame_id=FRAME_ID, index=1, count=2,
+        payload=final.payload, rcs=final.rcs ^ 1,
+    )
+    result = r.receive(PEER_A, encode(other_rcs))
+
+    assert isinstance(result, ABORTED)
+    assert result.reason == "conflicting duplicate"

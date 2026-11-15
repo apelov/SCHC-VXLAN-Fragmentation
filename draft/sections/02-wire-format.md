@@ -44,6 +44,12 @@ There is no original-length field. The receiver relies on the fragment count, th
 
 The RuleID is one byte, so that the header stays byte-aligned; a zero-bit RuleID is not used. Section 6 of {{RFC8724}} leaves the RuleID size to the Profile. The RuleID is configured per peer association and is 0 in the prototype.
 
+## Mode Fields and Binding Fields
+
+The Out-of-Order No-ACK mode proper consists of the RuleID, the Frame ID, the fragment index, the fragment count, the slice and the RCS, together with the receiver procedure and the discard deadline. The UDP/Ethernet binding for VXLAN consists of the VNI, the UDP destination port and UDP checksum, the use of an Ethernet frame without FCS as the fragmented unit, and the PMTU-derived slice budget of the sender procedure. The binding is kept explicit so that the mode can later be separated from it.
+
+Open Issue: whether the mode and the binding remain in one document is not settled.
+
 ## Reassembly Check Sequence
 
 The final fragment, and only the final fragment, carries a 4-byte RCS after its slice. It is the CRC-32C of the original frame bytes in wire order, serialized big-endian. The RCS guards against splicing slices of different frames, for example after a restart. It covers the frame bytes only and checks reassembly integrity; it does not protect the header.
@@ -63,10 +69,10 @@ A sender MUST generate the UDP checksum on every extension datagram, over IPv4 a
 
 ## UDP Port Selection
 
-The UDP destination port is selected by configuration and identifies this format, distinct from the port used for ordinary VXLAN. Both peers are configured with the same port.
+The UDP destination port is selected by configuration and identifies this format, distinct from the port used for ordinary VXLAN. Each sender is configured with the destination port on which its peer receives this format.
 
 Open Issue: header versioning and UDP demultiplexing are not settled. The header has no version field. The port is locally configured in this version. The SCHC UDP port of {{I-D.ietf-schc-protocol-numbers}} is the candidate once assigned; that draft has no assigned value yet and does not define the UDP payload layout, so sharing the port is open, as is the allocation of RuleID values on a shared port. Any eventual IANA request is also open.
 
 ## Provisional Status
 
-The field sizes, offsets and the RuleID value in this section are provisional prototype choices and may change before any interoperable specification. The reference model in `src/schcvx/wire.py` implements exactly this layout.
+The field sizes, offsets and the RuleID value in this section are provisional prototype choices and may change before any interoperable specification. A reference model implements exactly this layout (see Implementation Status).

@@ -27,9 +27,11 @@ author:
 normative:
   RFC7348:
   RFC8724:
-  RFC8899:
 
 informative:
+  RFC8899:
+  RFC8085:
+  RFC4459:
   I-D.ietf-schc-protocol-numbers:
 
 --- abstract
@@ -50,12 +52,17 @@ This document specifies a deadline-bounded fragmentation mode for Ethernet frame
 
 {::include sections/06-examples.md}
 
+# Implementation Status
+{:removeinrfc="true"}
+
+This section is to be removed before publication, as described in {{?RFC7942}}. A Python reference model of the sender, the receiver and the CRC-32C exists and generates the examples in this document. It is a test aid and not a data-plane implementation. Its location will be given in a later version.
+
 # Open Issues Summary
 
 This section collects the Open Issues stated in the preceding sections. Each remains open in this version.
 
-* Placement (Introduction): UDP demultiplexing, header versioning, any IANA request, and peer capability provisioning before oversized frames are sent.
-* Relationship to SCHC (Introduction): how the Out-of-Order No-ACK mode integrates with the SCHC framework, and the mapping of RuleID, Frame ID, fragment index and RCS to SCHC architecture terms, including the width of the Frame ID.
+* Placement and Interoperability: UDP demultiplexing, header versioning, any IANA request, and peer capability provisioning before oversized frames are sent.
+* Relationship to SCHC: how the Out-of-Order No-ACK mode integrates with the SCHC framework, whether the mode and the UDP/Ethernet binding stay in one document, and the mapping of RuleID, Frame ID, fragment index and RCS to SCHC architecture terms, including the width of the Frame ID.
 * Fragment Format: header versioning and UDP demultiplexing, including whether the SCHC UDP port is shared, the allocation of RuleID values on a shared port, and any IANA request.
 * Sender Procedure: dynamic PMTU discovery, which is not specified.
 * Receiver Procedure and Default Operational Profile: the deadline equality rule, that is, whether a fragment arriving exactly at the deadline is late.

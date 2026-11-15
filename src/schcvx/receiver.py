@@ -216,7 +216,7 @@ class Receiver:
 
         existing = entry.slices.get(frag.index)
         if existing is not None:
-            if existing == frag.payload:
+            if existing == frag.payload and (not is_final or frag.rcs == entry.rcs):
                 self.counters["duplicate"] += 1
                 return DUPLICATE_IGNORED()
             self._retire(key, entry, now)

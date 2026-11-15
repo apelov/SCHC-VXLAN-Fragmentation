@@ -1,6 +1,8 @@
 # Introduction
 
-VXLAN {{RFC7348}} carries Ethernet frames in UDP datagrams. When the encapsulated frame exceeds the underlay IP path MTU (PMTU), standard VXLAN cannot carry it, and VTEPs MUST NOT fragment VXLAN packets (Section 4.3 of {{RFC7348}}). This document specifies an extension that fragments such a frame into several UDP datagrams between a pair of VTEPs, reassembles it at the receiver, and delivers it only after successful reassembly.
+VXLAN {{RFC7348}} carries Ethernet frames in UDP datagrams. When the encapsulated frame exceeds the underlay IP path MTU (PMTU), standard VXLAN cannot carry it, and VTEPs MUST NOT fragment VXLAN packets (Section 4.3 of {{RFC7348}}). This document specifies an extension that fragments such a frame into several UDP datagrams between a pair of VTEPs, reassembles it at the receiver, and delivers it only after successful reassembly. General guidance on UDP usage and on MTU issues with tunnels is in {{RFC8085}} and {{RFC4459}}.
+
+This version is a framing proposal, presented to seek working group feedback and adoption. Its wire format is provisional and several parameters are left as open issues.
 
 The requirements are:
 
@@ -23,8 +25,6 @@ The first version targets statically provisioned unicast VTEP pairs in a managed
 # Terminology
 
 {::boilerplate bcp14-tagged}
-
-The BCP 14 keywords are used only where interoperability requires them.
 
 The following terms are used in this document.
 
@@ -76,11 +76,13 @@ Open Issue: UDP demultiplexing, header versioning, any IANA request, and the nee
 
 Section 8.4.1 of {{RFC8724}} defines the No-ACK fragmentation mode. It assumes in-order delivery of fragments and concludes reassembly on All-1. The indexed receiver in this document can accept the final fragment first and wait for missing indices, so No-ACK does not fit.
 
+A Profile can set the FCN size above one bit and define FCN values other than All-1 (Section 8.4.1 of {{RFC8724}}), so a No-ACK Profile with several fragments is possible. It still lacks what an out-of-order receiver needs. The All-1 value identifies the end, but nothing in the fragments states how many fragments the frame has. A receiver that holds the All-1 fragment and several others cannot tell whether it holds all of them, unless the Profile fixes the fragment count; here the count varies with the frame length. Carrying the count in every fragment, with an ascending index, lets any fragment, including the final one, open an entry with a bitmap of the right size.
+
 This document defines a new SCHC fragmentation mode, named Out-of-Order No-ACK, with a UDP/Ethernet binding. It is a new mode defined by its differences from No-ACK, not an extension of No-ACK. Open Issue: how the mode integrates with the SCHC framework is pending working-group agreement.
 
 The mode differs from No-ACK in three ways:
 
-* **Index and count instead of FCN.** In No-ACK, the FCN All-1 value only signals the last tile, the recommended FCN size is one bit, and the meaning of other values is left to the Profile (Sections 8.2.4 and 8.4.1 of {{RFC8724}}). That suffices for an in-order receiver. A receiver that may see the final fragment first needs the position of every fragment and the total number of fragments from whichever fragment arrives first. Each fragment therefore carries an ascending index and the count. The index plays the role of the FCN; the count has no RFC 8724 counterpart.
+* **Index and count instead of FCN.** In No-ACK, the FCN All-1 value only signals the last tile (Section 8.2.4 of {{RFC8724}}), the recommended FCN size is one bit, and the meaning of other values is left to the Profile (Section 8.4.1 of {{RFC8724}}). That suffices for an in-order receiver. A receiver that may see the final fragment first needs the position of every fragment and the total number of fragments from whichever fragment arrives first. Each fragment therefore carries an ascending index and the count. The index plays the role of the FCN; the count has no RFC 8724 counterpart.
 * **Fixed deadline instead of Inactivity Timer.** The No-ACK receiver resets the Inactivity Timer on each Regular fragment (Section 8.4.1.2 of {{RFC8724}}). Here the deadline is fixed at the first arrival and never extended.
 * **Frame ID and retirement record.** The Frame ID plays the role of DTag, sized so that a retired frame stays recognizable while late fragments can still arrive.
 

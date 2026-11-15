@@ -24,6 +24,8 @@ A receiver MUST identify a configured peer association from the outer source add
 
 Nothing in the fragment header authenticates the sender. A party able to inject packets with a forged outer source address can send fragments that appear to come from a configured peer, and can thereby inject frames into an admitted VNI or consume reassembly state. The CRC-32C RCS and the UDP checksum detect accidental corruption only. They are not keyed and provide no peer authentication or integrity against an attacker. A zero UDP checksum is dropped, which removes no spoofing exposure. Where spoofing is a concern, the deployment SHOULD use an authenticated underlay, such as an IPsec association or a fabric with source-address validation at its edges, or equivalent filtering that restricts the sources able to reach the configured port.
 
+Because Frame IDs are a sequential counter, an attacker that can inject packets can open the next expected Frame ID with a wrong count, or send fragments that conflict with those of a genuine frame, so that the genuine frame is aborted. An unpredictable initial value only raises the cost of guessing, because the increments stay observable on the wire. The mitigation is the authenticated underlay described above.
+
 ## State Exhaustion
 
 Reassembly state is the main resource an attacker can consume. The receiver bounds it by construction: entries are keyed by peer association, VNI, RuleID and Frame ID, the number of fragments per frame and the slice length are bounded, and every entry expires at `first_rx + Δ`, never extended. Because retirement records are kept for `L`, an attacker that opens many Frame IDs also occupies retirement capacity. A receiver SHOULD apply the capacity limits per scope so that one peer or VNI cannot exhaust the state of others, and when a scope is exhausted it MUST stop admitting new Frame IDs in that scope rather than evict state needed for duplicate suppression. Exhaustion is counted. Admission checks run before any state is created.
@@ -34,7 +36,7 @@ Duplicate suppression through active and retired entries stops a captured frame 
 
 ## Other Considerations
 
-A receiver never delivers a frame after expiry, so an attacker cannot extend the holding time by sending late fragments. An attacker that can delay or drop fragments can cause frames to be discarded at the deadline; this is loss, not corruption. Mixing fragments of different frames under a forged Frame ID is limited to the scope of one peer association and VNI, and a wrongly assembled frame fails the RCS check except with the probability of a CRC-32C collision, which an attacker can engineer deliberately.
+A receiver never delivers a frame whose completing fragment arrived at or after expiry, so an attacker cannot extend the holding time by sending late fragments. An attacker that can delay or drop fragments can cause frames to be discarded at the deadline; this is loss, not corruption. Mixing fragments of different frames under a forged Frame ID is limited to the scope of one peer association and VNI, and a wrongly assembled frame fails the RCS check except with the probability of a CRC-32C collision, which an attacker can engineer deliberately.
 
 # IANA Considerations
 

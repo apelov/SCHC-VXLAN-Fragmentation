@@ -2,7 +2,7 @@
 
 A receiver can observe incompleteness only at the cutoff. At that moment it cannot tell whether a missing fragment was lost or will arrive later. A fragment received after expiry is positive evidence of lateness. An implementation SHOULD report the two events separately: an expired entry with missing fragments (incompleteness, loss or lateness not distinguished) and a fragment arriving after expiry or retirement (late).
 
-The deadline is `expiry = first_rx + Δ`, fixed at the first admissible fragment and never extended. Under the receiver procedure, an entry is expired for any fragment whose arrival timestamp `t` satisfies `t >= expiry`.
+The deadline is `expiry = first_rx + Δ`, fixed at the first admissible fragment and never extended. The prototype rule, subject to the Open Issue below, is that an entry is expired for any fragment whose arrival timestamp `t` satisfies `t >= expiry`.
 
 ## Choosing Δ
 
@@ -22,11 +22,11 @@ The first-arrival deadline bounds only the time the receiver holds a frame for r
 
 # Frame Identification and Restart
 
-The Frame ID is a 64-bit counter. The sender uses one monotonic counter per sending association and VNI, and every frame fragmented in that scope takes the next value. A Frame ID MUST be unique across active and recently retired frames within the configured peer association and VNI. The 8-byte width is a prototype choice kept for alignment; the width itself is an Open Issue.
+The Frame ID is a 64-bit counter. The sender uses one monotonic counter per sending association and VNI, and every frame fragmented in that scope takes the next value. A Frame ID MUST be unique across active and recently retired frames within the configured peer association and VNI. The counter starts at any value chosen by the sender. At 64 bits, wrapping is not expected within the lifetime of a deployment, and behaviour at wrap is not specified. The 8-byte width is a prototype choice kept for alignment; the width itself is an Open Issue.
 
 ## Sender Restart
 
-A sender restart MUST NOT reuse a Frame ID that a receiver may still hold as active or retired. A sender achieves this in one of two ways:
+A sender restart must not result in the reuse of a Frame ID that a receiver may still hold as active or retired. This is a requirement on the deployment; the mechanism is an Open Issue. Two approaches are candidates, and neither is specified in this version:
 
 * it persists counter allocation, so that after a restart the counter resumes above every value previously used; or
 * it establishes a new association generation that the receiver can distinguish, and the receiver rejects the old generation.

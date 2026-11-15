@@ -1,6 +1,6 @@
 # Examples
 
-Both examples use the following parameters, produced by the reference model in `src/schcvx/`.
+Both examples use the following parameters, produced by the reference model described in Implementation Status.
 
 * RuleID 0 (prototype value); VNI 12345 (0x003039); Frame ID 1 (0x0000000000000001); peer vtep-2.
 * PMTU 1500 bytes, IPv4, H_IP = 20 bytes (no outer IP options).
