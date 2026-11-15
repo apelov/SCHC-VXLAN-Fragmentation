@@ -16,3 +16,10 @@ Produce `draft-vladyka-schc-vxlan-fragmentation-00` (Standards Track, SCHC WG) v
 
 ## Next
 Relay the reviewer's findings, then apply any agreed fixes to the draft sections.
+
+## Revised C review proposal (2026-11-14)
+- Added docs/design/REVISED-C-PROPOSAL.md; authority/plan in .ai/plans/revised-c-design.md. Frozen design and implementation unchanged.
+- Proposed four-bit first/countdown encoding excludes All-1 from countdown, supports 2..8 fragments; 60-bit DTag packing and direct NoCompress binding remain provisional.
+- Corrected standards claims, restart/drain/retirement timing, early VNI admission and capacity arithmetic. Preserved inherited CRC-32C decision.
+- Exhaustively checked encoding/reconstruction across all permutations for K=2..8 and checked PMTU examples. Independent semantic review remains outstanding.
+- Existing untracked WIRE-OPTIONS.md was preserved and excluded from checkpoint.
