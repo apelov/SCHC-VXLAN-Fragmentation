@@ -160,6 +160,11 @@ This version requests no IANA action. UDP port assignment, shared SCHC port demu
 * Set interoperable timer, packet lifetime, memory and frame-size parameters; validate DTag width against actual rate and restart requirements.
 * Define and verify any optional compression rules separately.
 
+# Acknowledgements
+{:numbered="false"}
+
+Thanks to Laurent Toutain for the useful discussions and the inputs regarding NoAck.
+
 --- back
 
 # Earlier Indexed Out-of-Order Proposal
