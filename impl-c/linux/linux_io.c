@@ -23,6 +23,7 @@
 
 #define BATCH 32
 #define PACKET_SIZE 65536
+#define RAW_RCVBUF_BYTES (16 * 1024 * 1024)
 struct runtime {
     const struct schcvx_config *config;
     struct schcvx_daemon *daemon;
@@ -96,12 +97,29 @@ static int open_tx(const struct schcvx_config_assoc *a)
         connect(fd, (struct sockaddr *)&peer, sizeof peer) < 0) { int e = errno; close(fd); errno = e; return -1; }
     return fd;
 }
+static void set_raw_rcvbuf(int fd)
+{
+    int want = RAW_RCVBUF_BYTES, got = 0;
+    socklen_t len = sizeof got;
+    if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &want, sizeof want) < 0 &&
+        setsockopt(fd, SOL_SOCKET, SO_RCVBUF, &want, sizeof want) < 0) {
+        fprintf(stderr, "WARNING: raw socket receive buffer request failed: %s (continuing)\n", strerror(errno));
+    }
+    if (getsockopt(fd, SOL_SOCKET, SO_RCVBUF, &got, &len) < 0) {
+        fprintf(stderr, "WARNING: reading raw socket receive buffer: %s\n", strerror(errno));
+        return;
+    }
+    /* The kernel reports twice the requested value (bookkeeping overhead). */
+    if (got < want) fprintf(stderr, "WARNING: raw socket receive buffer is %d bytes, requested %d\n", got, want);
+    else fprintf(stderr, "INFO: raw socket receive buffer is %d bytes\n", got);
+}
 static int open_raw(const struct schcvx_config *c)
 {
     struct sock_filter code[2 * SCHCVX_MAX_ASSOC + 3];
     size_t i, n = 0;
     int fd = socket(AF_INET, SOCK_RAW | SOCK_NONBLOCK | SOCK_CLOEXEC, IPPROTO_UDP);
     if (fd < 0) return -1;
+    set_raw_rcvbuf(fd);
     code[n++] = (struct sock_filter)BPF_STMT(BPF_LDX | BPF_B | BPF_MSH, 0);
     code[n++] = (struct sock_filter)BPF_STMT(BPF_LD | BPF_H | BPF_IND, 2);
     for (i = 0; i < c->count; i++) {

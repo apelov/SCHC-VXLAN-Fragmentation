@@ -181,3 +181,8 @@ nanoseconds. Lab-profile defaults are provided for everything except `local_ip`,
 5. `test_tx.c`: the "every datagram fits P" check also runs for every fragment of the K=2..8 tiling loop.
 6. `nix/module.nix` and `linux/schcvx.conf.example`: `dtag_rate` default 1000000 and `dtag_burst` 10000 (the old 1000/100 throttled traffic above about 1000 fragmented frames per second); README explains that `dtag_rate` must exceed the fragmented frame rate.
 7. README: the flake must be referenced as a git flake including the repository root; a plain `path:` reference to `impl-c` fails because the build reads `draft/revised/wire-vectors.json`.
+
+## Performance fixes
+
+1. The raw receive socket requests a 16 MiB buffer (`SO_RCVBUFFORCE`, then `SO_RCVBUF`) and logs the effective size. At about 21,000 two-fragment packets in 6 s the kernel default (212992 bytes) dropped 4,454 datagrams; with 16 MiB there were none. Failure to set it only warns.
+2. Retirement capacity equals `max_entries` (WP09), so about rate x R identifiers are retired at any moment. With 1024 entries and R = 100 ms the receiver refused 5,323 packets in 6 s; with 16384 none. Lab and NixOS defaults are now per association 16384 / 33554432 / 2048 and global 32768 / 67108864 / 4096 (max_entries / max_bytes / orphan_budget). The config parser has no constraint between global and per-association values.

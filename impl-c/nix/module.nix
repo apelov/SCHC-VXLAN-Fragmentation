@@ -26,9 +26,9 @@ let
       Delta = mkOption { type = types.ints.unsigned; default = 20000000; description = "Timer Delta in nanoseconds."; };
       R = mkOption { type = types.ints.unsigned; default = 100000000; description = "Retirement time R in nanoseconds."; };
       Q = mkOption { type = types.ints.unsigned; default = 200000000; description = "Startup quarantine Q in nanoseconds."; };
-      max_entries = mkOption { type = types.ints.positive; default = 1024; description = "Per-association receiver entries."; };
-      max_bytes = mkOption { type = types.ints.positive; default = 4194304; description = "Per-association retained bytes."; };
-      orphan_budget = mkOption { type = types.ints.unsigned; default = 256; description = "Per-association orphan budget."; };
+      max_entries = mkOption { type = types.ints.positive; default = 16384; description = "Per-association receiver entries."; };
+      max_bytes = mkOption { type = types.ints.positive; default = 33554432; description = "Per-association retained bytes."; };
+      orphan_budget = mkOption { type = types.ints.unsigned; default = 2048; description = "Per-association orphan budget."; };
       dtag_start = mkOption { type = types.ints.unsigned; default = 0; description = "First DTag value."; };
       dtag_rate = mkOption { type = types.ints.positive; default = 1000000; description = "DTag allocations per second; must exceed the expected fragmented frame rate."; };
       dtag_burst = mkOption { type = types.ints.positive; default = 10000; description = "DTag allocation burst."; };
@@ -117,9 +117,9 @@ in
       defaultText = "the schcvxd package of this flake";
       description = "The schcvxd package.";
     };
-    max_entries = mkOption { type = types.ints.positive; default = 1024; description = "Global receiver entry limit."; };
-    max_bytes = mkOption { type = types.ints.positive; default = 4194304; description = "Global retained byte limit."; };
-    orphan_budget = mkOption { type = types.ints.positive; default = 256; description = "Global orphan budget."; };
+    max_entries = mkOption { type = types.ints.positive; default = 32768; description = "Global receiver entry limit."; };
+    max_bytes = mkOption { type = types.ints.positive; default = 67108864; description = "Global retained byte limit."; };
+    orphan_budget = mkOption { type = types.ints.positive; default = 4096; description = "Global orphan budget."; };
     associations = mkOption {
       type = types.attrsOf (types.submodule assocModule);
       default = { };

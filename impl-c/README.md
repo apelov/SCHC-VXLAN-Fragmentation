@@ -88,7 +88,7 @@ built-in defaults. Values are decimal numbers or the strings shown. **All durati
 | `Delta` | Fixed reassembly deadline Delta, nanoseconds. |
 | `R` | Retirement time R, nanoseconds. |
 | `Q` | Startup quarantine Q for DTag allocation, nanoseconds. |
-| `max_entries` | Receiver entries for this association (positive). |
+| `max_entries` | Receiver entries for this association (positive). It also bounds retired identifiers, so set it to at least (expected packet rate x R) plus the active entries. Example: about 63,000 full-size packets per second at 760 Mbit/s with R = 100 ms needs about 6,300; the shipped default is 16384. When it is too small the receiver refuses packets (`table_exhaustion`). |
 | `max_bytes` | Retained bytes for this association (positive). |
 | `orphan_budget` | Orphan entries for this association. |
 | `dtag_start` | First DTag value; below 2^32 (compact) or 2^60 (extended). |
@@ -110,6 +110,10 @@ The daemon refuses to start, naming the section and key, when any of these fails
 - with D = max(W + I, Delta): Q > B + D + R;
 - the DTag allocator accepts `dtag_start`, `dtag_rate`, `dtag_burst`: the identifier space (2^32 or 2^60) must hold
   burst + rate x Q without wrapping inside the quarantine.
+
+### Raw-socket receive buffer
+
+The daemon requests a 16 MiB receive buffer on its raw socket (`SO_RCVBUFFORCE`, falling back to `SO_RCVBUF`), so bursts are not dropped at the kernel default (`net.core.rmem_default`). Startup continues if both requests fail. Confirm it in the daemon log: an `INFO: raw socket receive buffer is N bytes` line (the kernel reports about twice the request) or a `WARNING` line. Kernel drops show in the drops column of `/proc/net/raw`.
 
 ## Counters
 
