@@ -1,0 +1,54 @@
+# Example configuration for the `vtep` binary (interop/impl-rust).
+#
+# Usage:
+#   sudo ./target/release/vtep --config vtep.conf.example
+#   sudo ./target/release/vtep --config vtep.conf.example --peer 192.168.11.50   # CLI overrides the file
+#
+# Format: one "key = value" per line. Blank lines and lines starting with
+# "#" are ignored. Every key here is also a --flag of the same name
+# (e.g. "lan-if = enp1s0" <-> "--lan-if enp1s0").
+
+# --- Interfaces -------------------------------------------------------
+# lan-if: the interface this VTEP captures/injects Ethernet frames on.
+# Point this at a real LAN port (e.g. enp1s0) only once you've confirmed
+# that's safe to do -- see the veth-based test setup in interop/README.md
+# notes if you want to validate the bridge first without touching it.
+lan-if = enp1s0
+
+# local/port: this VTEP's own WAN-side address and UDP port (bound once,
+# for both sending and receiving -- satisfies "same source port for every
+# fragment of a packet").
+local  = 192.168.11.1
+port   = 60789
+
+# peer: the remote VTEP's WAN-side address.
+peer   = 192.168.11.2
+
+# --- Peer association parameters (must match the peer's configuration) --
+pmtu     = 1280      # underlay IP PMTU
+h-ip     = 20        # outer IP header size (20 = IPv4, no options)
+variant  = compact   # compact (32-bit DTag) or extended (60-bit DTag)
+rule     = 1         # fragmentation RuleID
+vni      = 100       # VXLAN VNI carried in the SCHC Packet's VXLAN header
+
+# trace: log every forwarded frame (lan->wan / wan->lan). Off by default --
+# at line rate this costs a timestamp + formatted write per packet. Drops
+# and errors are always logged regardless of this setting.
+trace = false
+
+# --- Receiver ------------------------------------------------------------
+receiver       = ordered   # ordered (RFC 8724 No-ACK, default) or tolerant
+inactivity-ms  = 10        # Ordered Receiver inactivity timer / Tolerant's optional one
+deadline-ms    = 10        # Tolerant Receiver's fixed total deadline (Delta)
+retirement-ms  = 100       # how long a finished identifier is remembered, to catch late fragments
+max-entries    = 64        # cap on concurrent in-progress reassemblies
+
+# --- Forwarding filter -----------------------------------------------
+# THIS is the answer to "where is the destination subnet defined": only a
+# captured LAN frame whose inner IPv4 destination address falls inside one
+# of the subnets below is sent over the tunnel (default-deny -- a frame
+# matching no rule here is left alone, not forwarded). At least one
+# "allow" line (or --allow on the command line) is required; the line can
+# repeat for more than one subnet.
+allow = 10.0.0.0/24
+allow = 192.168.44.0/24

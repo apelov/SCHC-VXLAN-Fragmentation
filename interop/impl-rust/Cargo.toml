@@ -1,0 +1,19 @@
+[package]
+name = "schcvx"
+version = "0.1.0"
+edition = "2021"
+description = "Rust implementation of the SCHC No-ACK VXLAN fragmentation profile (draft-vladyka-schc-vxlan-fragmentation-00-revised)"
+
+[lib]
+name = "schcvx"
+path = "src/lib.rs"
+
+[[bin]]
+name = "vtep"
+path = "src/bin/vtep.rs"
+
+[dependencies]
+libc = "0.2"
+
+[dev-dependencies]
+serde_json = "1"
