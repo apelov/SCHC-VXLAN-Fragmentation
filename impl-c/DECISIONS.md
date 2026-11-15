@@ -57,3 +57,22 @@ emits byte arrays and metadata without protocol encoding. Meson tracks both
 script and JSON and generates the header in the build directory. The C test
 reconstructs packets independently and uses only CRC and wire APIs for fragments.
 No protocol disagreements were found for WP03 or WP04.
+
+## WP05: sender and DTag allocation
+
+The configured PMTU is the minimum supported PMTU. Frame limits include the
+14-byte Ethernet header. An unfragmented plan reports K=1, C=0 and packet
+length as last_len. Fragment construction borrows prefix and frame buffers;
+the output must not overlap them. Emission stops at equality with S.
+
+The caller owns one DTag state per association and fragmentation rule, provides
+its start value (zero is the default), monotonic nanosecond timestamps, and a
+positive integer token rate and burst. The bucket starts full and retains
+fractional tokens. Initialization checks burst plus rate times quarantine
+against the identifier space. Backward timestamps have a distinct error. The
+caller must account for the emission interval in its quarantine rate margin.
+
+## Questions (WP05)
+
+SPEC 4.3 says stop when the emission interval would exceed S, whereas the draft
+requires stopping when S is reached. The implementation follows the draft.

@@ -120,7 +120,7 @@ Draft "Sender Procedure", with P = PMTU, H = outer IP header length, E = frame l
 - Otherwise C = P − H − 8 − A; require C ≥ 9; K = ceil((E + 9) / C); reject the frame if it is outside the configured length range or K is outside 2..8.
 - Tiles are contiguous, each C bytes except the last (at most C). FCNs: first = `1` followed by K − 2, then `0` followed by K − 3 down to 0, then `1111` with the RCS.
 - One DTag per packet; the same RuleID and DTag on every fragment; fragments sent in order. No Sender-Abort is sent.
-- Bound S: if the time from first to last emission of a packet would exceed S, stop emitting it and count the drop.
+- Bound S: when the time since the first emission of a packet reaches S, stop emitting it and count the drop (draft "DTag Reuse and Restart": the sender MUST stop emitting the packet when S is reached).
 - Startup validation: the minimum configured PMTU must carry the maximum frame length in at most 8 fragments.
 
 ### 4.4 DTag allocation (`dtag.h`)
