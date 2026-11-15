@@ -15,6 +15,7 @@ void schcvx_daemon_destroy(struct schcvx_daemon *daemon);
 int schcvx_process_frame(struct schcvx_daemon *daemon, size_t association, const uint8_t *frame, size_t len, uint64_t now);
 /* IP strings are canonical dotted decimal; the caller has verified the UDP checksum. */
 int schcvx_process_datagram(struct schcvx_daemon *daemon, const char *local_ip, uint16_t destination_port, const char *source_ip, const uint8_t *data, size_t len, uint64_t timestamp);
+void schcvx_count_bad_checksum(struct schcvx_daemon *daemon, const char *local_ip, uint16_t destination_port, const char *source_ip);
 void schcvx_sweep(struct schcvx_daemon *daemon, uint64_t now);
 bool schcvx_next_deadline(const struct schcvx_daemon *daemon, uint64_t *deadline);
 const struct schcvx_counters *schcvx_daemon_counters(const struct schcvx_daemon *daemon, size_t association);

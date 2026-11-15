@@ -112,3 +112,17 @@ limits are required keys `max_entries`, `max_bytes`, and `orphan_budget`.
 Per-association retirement capacity equals max_entries. The portable layer owns
 receiver storage and invokes synchronous callbacks; the I/O implementation must
 copy datagrams if it queues them, and must provide monotonic time between sends.
+
+## WP09b: Linux I/O
+
+The raw socket filter accepts the configured destination ports; the portable layer
+performs address and association admission. One monotonic timestamp is used for
+each recvmmsg batch. Counters files contain named association sections, including
+all associations sharing a path, and are atomically replaced; periodic scheduling
+is measured from the last attempted write. TAP MTU setup is best effort, while
+failure to bring an interface up is fatal. Socket and TAP I/O errors are logged;
+failed individual writes are dropped. Verify on the Linux server that
+IP_PMTUDISC_PROBE sets DF while ignoring cached PMTU, that the transmit socket's
+drop-all filter still prevents ICMP port-unreachable responses, that raw-socket
+copies arrive as expected alongside bound UDP sockets, and that the TAP MTU
+(max_frame_len minus 14) supports the intended tagged and untagged frames.
