@@ -1,6 +1,6 @@
 # Revised option C: VXLAN payload fragmentation
 
-Status: review proposal, 2026-11-14. This document incorporates the interactive discussion and corrects identified design defects. It does not replace the frozen DESIGN.md, change the implemented wire format, or reopen sealed workpackages. New engineering choices below are proposals pending human review. No claim of exhaustive or independent validation is made.
+Status: historical review proposal, 2026-11-14. Superseded for the revised draft by `draft/revised/draft-vladyka-schc-vxlan-fragmentation-00-revised.md`: that revision adds a NoCompress C/D RuleID and corrects lifetime bounds to include sender emission span. Do not implement the direct-payload mapping or timing formulas below. This document incorporates the interactive discussion and corrects identified design defects. It does not replace the frozen DESIGN.md, change the implemented wire format, or reopen sealed workpackages. New engineering choices below are proposals pending human review. No claim of exhaustive or independent validation is made.
 
 ## Recommendation
 

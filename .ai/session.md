@@ -31,3 +31,8 @@ Relay the reviewer's findings, then apply any agreed fixes to the draft sections
 - Added standalone draft/revised/draft-vladyka-schc-vxlan-fragmentation-00-revised.md and build script; original technical sections preserved in appendix. Original draft and reference model remain unchanged.
 - Main profile describes RFC 8724 ordered receiver; reordering-tolerant receiver is explicitly an extension with standards status open. Direct NoCompress mapping and RFC 7348 interpretation remain open.
 - Built XML, text and HTML using kramdown-rfc and xml2rfc. idnits unavailable; semantic review is not independent, and old model applies to appendix only.
+
+## Revised draft review repairs
+- User authorized all review fixes. Added explicit 8-bit NoCompress C/D RuleID; retained compact/extended F/R layouts. Updated CRC coverage, MTU examples and first-fragment parsing.
+- Defined emission bound S, delivery bound B, arrival span W=S+B, separate ordered/tolerant lifetime bounds, retirement and restart drain procedures. Clarified validation, association lookup and informative appendix.
+- Added standard-library wire checker and JSON vectors; all permutations K=2..8, loss, duplicates, corrupt and malformed cases pass. XML/text/HTML build passes. Existing pytest suite unavailable (pytest not installed); no production timed receiver or independent semantic validation claimed.

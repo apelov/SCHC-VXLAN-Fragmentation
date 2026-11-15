@@ -47,9 +47,9 @@ A peer association identifies configured local and remote tunnel endpoints, dire
 
 # Binding and Profile
 
-The sender forms the eight-byte VXLAN header followed by the complete Ethernet frame as presented to the tunnel, including carried VLAN tags and excluding FCS. This byte sequence is the packet supplied to fragmentation. The default binding passes these bytes without compression, called NoCompress in this document. It does not add a separate compression RuleID. The SCHC architectural mapping of this direct binding, including whether a separate NoCompress C/D RuleID is needed, remains an open issue for working group review. No wire-level compression rule is specified here.
+The sender forms a SCHC Packet consisting of an eight-bit NoCompress C/D RuleID, the eight-byte VXLAN header, and the complete Ethernet frame including carried VLAN tags and excluding FCS. This explicitly identified uncompressed packet follows the packet mapping of Sections 4, 5.1 and 7.2 of {{RFC8724}}. The C/D RuleID is configured at both ends, identifies the uncompressed VXLAN payload, and is distinct in function from the outer fragmentation RuleID. It appears once per packet, not once per fragment. After reassembly and RCS verification, the receiver checks and removes the C/D RuleID before VXLAN processing. Unknown C/D rules MUST be rejected. NoCompress support is mandatory and is the default; compression rules are outside this version.
 
-Fragment datagrams use a locally configured UDP destination port distinct from ordinary VXLAN. Both peers MUST know the binding and profile before traffic is sent. There is no in-band negotiation or version field. The association identifies the wire variant before the RuleID is parsed. The same outer source port and five-tuple SHOULD be used for all fragments of a packet to support flow affinity; the receiver identifies the peer independently of source UDP port. A sender MUST generate a UDP checksum for each fragment and the receiver MUST reject a zero or incorrect checksum, including over IPv4. Normal VXLAN behavior is unchanged.
+Fragment datagrams use a locally configured UDP destination port distinct from ordinary VXLAN. Both peers MUST know the binding and profile before traffic is sent. There is no in-band negotiation or version field. The receiver selects exactly one configured association using the local IP address, local UDP destination port, remote IP address and direction, before parsing the RuleID. That association fixes the RuleID width and wire variant; source UDP port is not part of this lookup. Ambiguous configurations MUST be rejected. Multiple variants for the same peers require distinct local addresses or destination ports. The same outer source port and five-tuple SHOULD be used for all fragments of a packet to support flow affinity; the receiver identifies the peer independently of source UDP port. A sender MUST generate a UDP checksum for each fragment and the receiver MUST reject a zero or incorrect checksum, including over IPv4. Normal VXLAN behavior is unchanged.
 
 Optional future compression requires independently specified matching rules and explicit context provisioning at both peers. It cannot be inferred from this profile. Rule mismatch can misroute traffic if VNI is elided; a future rule should preserve the VNI unless equivalent isolation is assured.
 
@@ -63,11 +63,11 @@ The No-ACK W field is absent. Each UDP payload carries a RuleID, DTag, four-bit 
 | Extended | 8 bits | 60 bits | 4 bits | 9 bytes | 13 bytes |
 {: #tab-variants title="Configured wire variants"}
 
-DTag size is configurable for each association and RuleID; additional sizes require the sum of RuleID, DTag and FCN widths to be a multiple of eight bits. Both ends MUST agree on all sizes and meanings before parsing. Width or RuleID changes MUST NOT occur while associated fragments or retirement records remain live. The default proposed variant is compact. The RuleID identifies the configured fragmentation rule; RuleID assignment is local to the association in this version. There is no W field or padding for these byte-aligned messages.
+DTag size is configurable for each association and RuleID; additional sizes require the sum of RuleID, DTag and FCN widths to be a multiple of eight bits. Both ends MUST agree on all sizes and meanings before parsing. An existing RuleID mapping or association variant MUST NOT be changed until sender admission has stopped and the quarantine below has elapsed, including traffic not yet observed by the receiver. DTag width is selected by the already parsed fragmentation RuleID. For this binding, fragmentation and C/D RuleID assignments MUST be prefix-free within the configured context: an eight-bit C/D RuleID cannot begin with an assigned four-bit fragmentation RuleID. For example, compact fragmentation RuleID 1 and NoCompress C/D RuleID 0 are compatible. The default proposed variant is compact. The RuleID identifies the configured fragmentation rule; RuleID assignment is local to the association in this version. There is no W field or padding for these byte-aligned messages.
 
 ## FCN Values
 
-The FCN is four bits, written `Fccc` for regular fragments. F identifies the first fragment. The three-bit c is the number of regular fragments remaining after this one, excluding All-1. For K fragments, 2 <= K <= 8, the first FCN is `1` followed by K-2; subsequent regular FCNs are `0` followed by the countdown from K-3 to zero. The final FCN is `1111`. Values `0110` and `0111` are invalid. The first regular tile contains the complete VXLAN header.
+The FCN is four bits, written `Fccc` for regular fragments. F identifies the first fragment. The three-bit c is the number of regular fragments remaining after this one, excluding All-1. For K fragments, 2 <= K <= 8, the first FCN is `1` followed by K-2; subsequent regular FCNs are `0` followed by the countdown from K-3 to zero. The final FCN is `1111`. Values `0110` and `0111` are invalid. The first regular tile contains the C/D RuleID and complete VXLAN header.
 
 | K | FCNs in sender order |
 | --- | --- |
@@ -81,13 +81,13 @@ RFC 8724 Section 8.4.1 permits a profile to set FCN width and define non-All-1 v
 
 ## Reassembly Check Sequence
 
-The RCS is CRC-32C over the entire packet in wire order, including its VXLAN header. The Castagnoli polynomial is 0x1edc6f41 (reflected 0x82f63b78); input and output are reflected, the initial register and final XOR are 0xffffffff, and the check value for ASCII `123456789` is 0xe3069283. Serialize the result most significant byte first. The profile chooses CRC-32C instead of the Ethernet CRC recommended in Section 8.2.3 of {{RFC8724}}. No padding is present for the byte-aligned binding described here. The UDP checksum and RCS detect errors but do not authenticate a sender.
+The RCS is CRC-32C over the entire packet in wire order, including its C/D RuleID and VXLAN header. The Castagnoli polynomial is 0x1edc6f41 (reflected 0x82f63b78); input and output are reflected, the initial register and final XOR are 0xffffffff, and the check value for ASCII `123456789` is 0xe3069283. Serialize the result most significant byte first. The profile chooses CRC-32C instead of the Ethernet CRC recommended in Section 8.2.3 of {{RFC8724}}. No padding is present for the byte-aligned binding described here. The UDP checksum and RCS detect errors but do not authenticate a sender.
 
 # Sender Procedure
 
 Let P be the configured IP PMTU and H the outer IP header size including options and any other encapsulation consuming the same PMTU budget. An Ethernet frame of E bytes fits ordinary VXLAN if E+8 <= P-H-8. Otherwise, if the peer is not configured for this profile, the sender drops and counts the frame.
 
-For an oversized frame let A be the All-1 header size, 9 or 13 bytes, and set C=P-H-8-A. The sender MUST require C>=8 and compute K=ceil((E+8)/C). It MUST reject frames outside configured size limits or K outside 2..8. It snapshots C for the packet, divides the packet into K contiguous nonempty tiles, with every regular tile C bytes and the last tile at most C bytes, and transmits them in order. The unused four-byte RCS allowance in regular fragments keeps the sizing uniform. IPv4 fragmentation MUST NOT be requested and IPv6 source fragmentation MUST NOT be used. PMTU discovery is not specified; {{RFC8899}} describes a possible method. UDP operational considerations are discussed in {{RFC8085}}.
+For an oversized frame let A be the All-1 header size, 9 or 13 bytes, and set C=P-H-8-A. The sender MUST require C>=9 and compute K=ceil((E+9)/C). It MUST reject frames outside configured size limits or K outside 2..8. It snapshots C for the packet, divides the packet into K contiguous nonempty tiles, with every regular tile C bytes and the last tile at most C bytes, and transmits them in order. The unused four-byte RCS allowance in regular fragments keeps the sizing uniform. The IPv4 DF bit MUST be set and IPv6 source fragmentation MUST NOT be used. PMTU discovery is not specified; {{RFC8899}} describes a possible method. UDP operational considerations are discussed in {{RFC8085}}.
 
 The sender allocates one DTag for the complete packet and uses the same RuleID and DTag on every fragment. No SCHC ACK, ACK REQ or retransmission is sent. This profile does not send Sender-Abort. Each association must be provisioned so its minimum supported PMTU and maximum frame length fit within eight fragments.
 
@@ -95,15 +95,21 @@ The sender allocates one DTag for the complete packet and uses the same RuleID a
 
 For the ordered receiver, Section 8.4.1 of {{RFC8724}} governs No-ACK processing. The receiver assembles regular fragment payloads in reception order and resets its inactivity timer on each regular fragment. On All-1 it appends the payload and checks the RCS; if the check fails it drops the packet, and reassembly concludes. On inactivity timer expiry it drops the incomplete packet. The timeout and RCS parameters are configured per rule. An All-1 arriving early is not held for missing fragments by this receiver.
 
-The receiver MUST validate peer association, UDP checksum, rule and local resource bounds. Before delivery it validates the reconstructed VXLAN header and authorizes the VNI for the peer. It learns MAC addresses only after successful reassembly and authorization. CRC checks cannot establish sender identity or prevent intentional collisions. A path that reorders fragments can cause loss even if all fragments arrive.
+The receiver MUST validate peer association, UDP checksum, rule and local resource bounds. It applies the structural validation below, but does not reorder regular tiles or suppress their duplicates within the RFC No-ACK reassembly procedure. Consequently duplicate regular fragments can cause an integrity failure. Terminal identifiers are subject to the retirement admission policy below. Before delivery it validates the reconstructed VXLAN header and authorizes the VNI for the peer. It learns MAC addresses only after successful reassembly and authorization. CRC checks cannot establish sender identity or prevent intentional collisions. A path that reorders fragments can cause loss even if all fragments arrive.
+
+# Structural Validation and State Admission
+
+Both receivers MUST validate the UDP checksum and association before accessing reassembly state. Let h be the regular header length. Datagrams shorter than h are malformed. A header-only All-1 (exactly h bytes) is Sender-Abort under Section 8.3.4 of {{RFC8724}}; discard and retire any matching active entry without replying. It MUST NOT be interpreted as data. All-1 data requires at least h+5 bytes (four-byte RCS and one payload byte); lengths h+1 through h+4 are malformed. Regular data requires at least h+1 bytes. FCNs 6 and 7 are invalid. A first-marked regular fragment must contain at least nine payload bytes and the configured NoCompress C/D RuleID. Unknown rules, bad lengths, invalid FCNs and invalid checksums are discarded without modifying or allocating packet state.
+
+Check retired identifiers before admission. Each admitted entry reserves capacity for its future retirement record. Enforce maximum retained packet bytes (maximum Ethernet frame length plus nine), maximum tile bytes, entry limits and per-peer/global orphan budgets before allocating or copying. Do not charge identical duplicates twice in the tolerant receiver. State that cannot be admitted is dropped; capacity MUST NOT be recovered by evicting a still-protected retirement record. On terminal completion, abort or timeout, release buffers and retain the identifier for R. A structurally valid fragment conflicting with admitted tolerant state terminates and retires that state; a malformed individual datagram does not.
 
 # Optional Reordering-Tolerant Receiver
 
 This section describes an experimental receiver extension, not unmodified RFC 8724 No-ACK. In particular, it may hold an early All-1 rather than immediately performing the integrity check and concluding reassembly. Its standards vehicle, including whether an RFC update or a separately specified mode is appropriate, remains open. A sender uses the same ordered sequence and cannot assume a receiver supports this extension without configuration.
 
-The receiver keys state by peer association, direction, RuleID and DTag. Subject to per-peer and global entry and byte limits, any valid fragment may open an entry. An entry opened before the first fragment is an orphan and its VNI is not yet known. A first fragment reveals the complete VXLAN header in the NoCompress binding; the receiver checks peer/VNI authorization and applies tenant accounting. It MUST reject unauthorized VNIs and MUST NOT learn MAC addresses before delivery.
+The receiver keys state by peer association, direction, RuleID and DTag. Subject to per-peer and global entry and byte limits, any valid fragment may open an entry. An entry opened before the first fragment is an orphan and its VNI is not yet known. A first fragment reveals the C/D RuleID followed by the complete VXLAN header in the NoCompress binding; the receiver checks peer/VNI authorization and applies tenant accounting. It MUST reject unauthorized VNIs and MUST NOT learn MAC addresses before delivery.
 
-The receiver stores each regular fragment by countdown and the final fragment separately. It ignores identical duplicates and aborts on conflicting duplicates. When the first marker arrives it supplies n=K-2; the expected regular positions are n down to zero, with the first marker only at n. Stored fragments outside these positions or with incompatible markers cause the entry to be discarded. Regular tiles have equal length, the final tile is no longer, and all bounds are checked before buffering. Completion requires the first fragment, all expected regular positions and All-1. The receiver assembles in countdown order, verifies the RCS once, validates the VXLAN unit and delivers once. On a complete packet with an incorrect RCS it discards immediately.
+The receiver stores each regular fragment by countdown and the final fragment separately. It ignores identical duplicates and aborts on conflicting duplicates. Identity compares the complete FCN and payload, and for All-1 also the RCS. A second first marker with a different countdown is a conflict; a first marker colliding with an already stored non-first position is also a conflict. An All-1 with unchanged payload but a changed RCS is a conflict. When the first marker arrives it supplies n=K-2; the expected regular positions are n down to zero, with the first marker only at n. Stored fragments outside these positions or with incompatible markers cause the entry to be discarded. Regular tiles have equal length, the final tile is no longer, and all bounds are checked before buffering. Completion requires the first fragment, all expected regular positions and All-1. The receiver assembles in countdown order, verifies the RCS once, validates the VXLAN unit and delivers once. On a complete packet with an incorrect RCS it discards immediately.
 
 A fixed total deadline is measured from the first admitted fragment with a monotonic receive timestamp. A fragment arriving at or after the deadline is late. Duplicates do not extend it. A configured inactivity timer may expire sooner; regular arrivals reset that timer. The receiver discards incomplete state at the earlier expiry. Processing queues and batched timer sweeps MUST preserve the decision based on receive timestamps, including fragments received before the deadline but processed later. The deadline bounds reception of pieces, not end-to-end latency.
 
@@ -111,15 +117,32 @@ A fixed total deadline is measured from the first admitted fragment with a monot
 
 DTag scope is the configured sending association and RuleID, across its VNIs and sender workers. Distinct overlapping packets MUST use distinct DTags as required by {{RFC8724}}. This proposal also requires a deployment-specific quarantine to prevent late duplicates from being associated with a new packet. Starting from zero on restart is safe only after that quarantine or with a distinguishable new association generation.
 
-Let B bound the time from the last emission of any copy of a fragment to its final possible arrival, including queueing and replication. Let D be the maximum receiver entry lifetime, and R be the retirement retention after completion, abort or expiry. The receiver retains a record for at least B after retirement and reserves bounded capacity for it at admission. The sender MUST NOT reuse a DTag until a conservative interval greater than B+D+R, with timing margin, has elapsed since its last emission. If that emission time is unknown following restart, it waits the full interval after restart. If the configured width and packet rate exhaust the available DTags before safe reuse, the sender stops admission rather than wrapping early. The bound must include all relevant paths and scheduling; without a defensible B the guarantee is best effort.
+Define the following finite deployment bounds and configure them at both endpoints:
 
-Receiver restart loses active and retired state. Before accepting the old association again, it must drain old traffic for at least B with sender admission coordinated, or use a receiver-visible new generation that rejects old traffic. Persistent DTag allocation or generation mechanisms are not defined on the wire here. An authenticated underlay with anti-replay is needed where active replay is a threat; CRC and finite retirement records are not authentication.
+* S: maximum interval from first to last emission of any fragment copy of a packet. The sender MUST stop emitting the packet when S is reached; queued work cannot resume that packet later.
+* B: maximum interval from emission of a copy to its receiver admission timestamp, including network duplication and receive queues. A later locally emitted copy is also subject to S. Let W=S+B, which conservatively bounds the arrival spread.
+* I: configured ordered-receiver inactivity timeout. For valid traffic, its maximum entry lifetime is D_ordered=W+I: the final regular arrival occurs within W of first arrival and can restart I.
+* Delta: tolerant receiver total deadline. Its maximum entry lifetime is D_tolerant=Delta, irrespective of inactivity resets.
+* D: the applicable D_ordered or D_tolerant; when behavior is not fixed, use their maximum.
+* R: retirement retention, at least W, including timing margin.
+
+These bounds apply to all copies, including delayed originals after an early timeout. Retaining an identifier for B alone is insufficient: the sender may still be emitting fragments after the receiver has retired it. Retention for W covers that remaining emission span and transport delay. Refreshing retirement on late copies is unnecessary under the stated bounds.
+
+The sender MUST NOT reuse a DTag until Q > B+D+R (including timing margin) after its previous last emission. B+D bounds how late old state may terminate; R then allows its retirement record to expire. If that last-emission time is unknown after restart, wait Q from startup. Packet-rate and width limits MUST prevent wrap before Q; otherwise stop admission. All sender workers and VNIs in the association share allocation. Persistent counter reservations or a receiver-visible generation may avoid restart waiting but are not encoded in this format.
+
+An ordered receiver has no fixed total deadline in RFC 8724; D_ordered is a bound derived from compliant finite emission and delivery, not a new timer that changes its state machine. Repeated hostile traffic is outside that assumption and requires resource controls and authentication. A tolerant receiver uses its actual fixed deadline. Configure I and Delta against W and the desired discard budget; no numeric defaults are implied.
+
+After receiver restart, stop sender admission and drain for W from confirmed cessation of new packet starts before reopening the same association, allowing already started packets their remaining S. Alternatively, after confirmed cessation of all emissions, drain for B. A new generation that rejects old traffic is another option. Blindly waiting B from receiver boot while a sender continues old work is insufficient. These bounds require coordinated configuration; absent defensible limits the suppression guarantee is best effort. Authenticated anti-replay protection is required against intentional replay.
 
 # Examples
 
-With compact headers, IPv4 without options, P=1500 and H=20, C=1463. An untagged 1514-byte Ethernet frame yields a 1522-byte VXLAN payload, split into 1463 and 59 bytes. FCNs are `1000` and `1111`, and outer IP lengths are 1496 and 96 bytes. For a 9014-byte frame, seven fragments suffice. With IPv6 and P=1280, H=40, C=1223 and the same 9014-byte frame requires eight fragments. These figures exclude additional encapsulation and require corresponding configured frame limits.
+With compact headers, IPv4 without options, P=1500 and H=20, C=1463. An untagged 1514-byte Ethernet frame yields a 1523-byte SCHC Packet (one C/D RuleID byte plus a 1522-byte VXLAN payload), split into 1463 and 60 bytes. FCNs are `1000` and `1111`, and outer IP lengths are 1496 and 97 bytes. For a 9014-byte frame, seven fragments suffice. With IPv6 and P=1280, H=40, C=1223 and the same 9014-byte frame requires eight fragments. These figures exclude additional encapsulation and require corresponding configured frame limits.
 
 A four-fragment packet has FCNs `1010`, `0001`, `0000`, `1111`. A tolerant receiver may receive `1111`, `0000`, `1010`, `0001`: it holds the final fragment, learns the expected positions from `1010`, and verifies the RCS after `0001` arrives. An ordered RFC 8724 receiver instead concludes its processing on receipt of the early All-1.
+
+# Implementation and Verification Status
+
+The accompanying `check_vectors.py` is an executable wire codec and complete-set reassembly checker for this revision. It verifies all arrival permutations for K=2..8, missing positions, duplicate and corruption handling, malformed lengths, both header layouts and MTU examples. `wire-vectors.json` contains complete fragment UDP payloads for both variants. It is not a timed receiver or a production implementation: timer races, admission limits, restart coordination and lifetime bounds still require implementation testing and independent review. The older Python reference model applies only to the historical appendix.
 
 # Security Considerations
 
@@ -131,7 +154,7 @@ This version requests no IANA action. UDP port assignment, shared SCHC port demu
 
 # Open Issues
 
-* Confirm the direct NoCompress binding and SCHC packet mapping, including whether a compression RuleID is required.
+* Review the proposed NoCompress VXLAN binding and prefix-free rule provisioning with the working group.
 * Determine the standards vehicle for the optional tolerant receiver and its relationship to RFC 8724 and RFC 7348.
 * Specify capability provisioning, UDP demultiplexing and any IANA requests.
 * Set interoperable timer, packet lifetime, memory and frame-size parameters; validate DTag width against actual rate and restart requirements.
@@ -141,7 +164,7 @@ This version requests no IANA action. UDP port assignment, shared SCHC port demu
 
 # Earlier Indexed Out-of-Order Proposal
 
-This appendix preserves the earlier draft's technical sections for comparison. Its wire format and procedures are an alternative, not part of the main profile above; statements within this appendix describe that earlier proposal. The existing reference model and generated examples apply to this appendix only. The original standalone source remains available separately.
+This appendix is informative and preserves the earlier draft's technical sections for comparison. Its capitalized requirements describe only the historical alternative, not conformance requirements for the principal profile. Statements that an out-of-order receiver requires a total count in every fragment are superseded by the first-marker/countdown construction in the main text. Historical port-assignment claims below are not current allocation guidance. Its wire format and procedures are an alternative, not part of the main profile above; statements within this appendix describe that earlier proposal. The existing reference model and generated examples apply to this appendix only. The original standalone source remains available separately.
 
 
 ## Introduction
@@ -320,11 +343,11 @@ A sender MUST generate the UDP checksum on every extension datagram, over IPv4 a
 
 The UDP destination port is selected by configuration and identifies this format, distinct from the port used for ordinary VXLAN. Each sender is configured with the destination port on which its peer receives this format.
 
-Open Issue: header versioning and UDP demultiplexing are not settled. The header has no version field. The port is locally configured in this version. The SCHC UDP port of {{I-D.ietf-schc-protocol-numbers}} is the candidate once assigned; that draft has no assigned value yet and does not define the UDP payload layout, so sharing the port is open, as is the allocation of RuleID values on a shared port. Any eventual IANA request is also open.
+Historical open issue: this alternative used a locally configured UDP port and did not settle shared-port demultiplexing, version indication or RuleID allocation. The current status and applicability of {{I-D.ietf-schc-protocol-numbers}} must be checked separately; this appendix makes no claim about its current allocations.
 
 ### Provisional Status
 
-The field sizes, offsets and the RuleID value in this section are provisional prototype choices and may change before any interoperable specification. A reference model implements exactly this layout (see Implementation Status).
+The field sizes, offsets and the RuleID value in this section are provisional prototype choices and may change before any interoperable specification. A reference model implements exactly this layout (historical reference model).
 
 ## Sender Procedure
 
@@ -507,7 +530,7 @@ A receiver never delivers a frame whose completing fragment arrived at or after 
 
 This document makes no request of IANA in this version. The UDP destination port of the fragment format is locally configured by the operator on both peers.
 
-The SCHC UDP port of {{?I-D.ietf-schc-protocol-numbers}} is the candidate port for a later version. That draft has no assigned value yet and does not define the UDP payload layout used here, so it is cited informatively only. The following remain Open Issues:
+The SCHC UDP port of {{?I-D.ietf-schc-protocol-numbers}} is the candidate port for a later version. This historical alternative did not settle its use; the reference is informative and does not assert current allocation status. The following remain Open Issues:
 
 * whether this format shares the SCHC UDP port, and how RuleID values are allocated on a shared port;
 * the eventual UDP port assignment, if any, and the need for a header version indication; and
@@ -515,7 +538,7 @@ The SCHC UDP port of {{?I-D.ietf-schc-protocol-numbers}} is the candidate port f
 
 ## Examples
 
-Both examples use the following parameters, produced by the reference model described in Implementation Status.
+Both examples use the following parameters, produced by the historical reference model.
 
 * RuleID 0 (prototype value); VNI 12345 (0x003039); Frame ID 1 (0x0000000000000001); peer vtep-2.
 * PMTU 1500 bytes, IPv4, H_IP = 20 bytes (no outer IP options).
