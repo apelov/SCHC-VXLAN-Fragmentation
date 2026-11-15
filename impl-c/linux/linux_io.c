@@ -30,6 +30,8 @@ struct runtime {
     int tap[SCHCVX_MAX_ASSOC], tx[SCHCVX_MAX_ASSOC];
     int raw, epoll, signals;
     uint64_t counter_due[SCHCVX_MAX_ASSOC];
+    uint64_t refused_logged[SCHCVX_MAX_ASSOC];
+    int refused_seen[SCHCVX_MAX_ASSOC];
 };
 static void log_error(const char *what) { fprintf(stderr, "ERROR: %s: %s\n", what, strerror(errno)); }
 static uint64_t now_ns(void *unused)
@@ -40,10 +42,31 @@ static uint64_t now_ns(void *unused)
     return (uint64_t)t.tv_sec * UINT64_C(1000000000) + (uint64_t)t.tv_nsec;
 }
 static uint64_t add_ns(uint64_t a, uint64_t b) { return UINT64_MAX - a < b ? UINT64_MAX : a + b; }
+static void warn_refused(struct runtime *r, size_t i)
+{
+    struct sockaddr_in peer;
+    socklen_t len = sizeof peer;
+    char text[INET_ADDRSTRLEN] = "?";
+    uint64_t now = now_ns(NULL);
+    if (r->refused_seen[i] && now - r->refused_logged[i] < UINT64_C(1000000000)) { return; }
+    r->refused_seen[i] = 1;
+    r->refused_logged[i] = now;
+    if (getpeername(r->tx[i], (struct sockaddr *)&peer, &len) == 0 && peer.sin_family == AF_INET) {
+        inet_ntop(AF_INET, &peer.sin_addr, text, sizeof text);
+        fprintf(stderr, "WARNING: UDP send: peer %s:%u refused a datagram (ICMP port unreachable); retrying\n", text, (unsigned)ntohs(peer.sin_port));
+    } else {
+        fprintf(stderr, "WARNING: UDP send: peer refused a datagram (ICMP port unreachable); retrying\n");
+    }
+}
 static int send_packet(void *ctx, size_t i, const uint8_t *p, size_t n)
 {
     struct runtime *r = ctx;
     ssize_t sent = send(r->tx[i], p, n, 0);
+    if (sent < 0 && errno == ECONNREFUSED) {
+        /* A pending ICMP error from an earlier datagram is reported by this call and consumed; retry once. */
+        warn_refused(r, i);
+        sent = send(r->tx[i], p, n, 0);
+    }
     if (sent < 0 || (size_t)sent != n) { if (sent >= 0) errno = EIO; log_error("UDP send"); return -1; }
     return 0;
 }

@@ -187,6 +187,10 @@ nanoseconds. Lab-profile defaults are provided for everything except `local_ip`,
 1. The raw receive socket requests a 16 MiB buffer (`SO_RCVBUFFORCE`, then `SO_RCVBUF`) and logs the effective size. At about 21,000 two-fragment packets in 6 s the kernel default (212992 bytes) dropped 4,454 datagrams; with 16 MiB there were none. Failure to set it only warns.
 2. Retirement capacity equals `max_entries` (WP09), so about rate x R identifiers are retired at any moment. With 1024 entries and R = 100 ms the receiver refused 5,323 packets in 6 s; with 16384 none. Lab and NixOS defaults are now per association 16384 / 33554432 / 2048 and global 32768 / 67108864 / 4096 (max_entries / max_bytes / orphan_budget). The config parser has no constraint between global and per-association values.
 
+## Linux I/O fixes
+
+1. A connected UDP socket reports a peer's ICMP port unreachable as `ECONNREFUSED` on the next `send()`, which lost one datagram whenever the peer daemon was not yet bound (for example just after a restart). `send_packet` now retries the same datagram once on `ECONNREFUSED` (the failed call consumed the pending error). A failed retry is an error as before. The refusal is logged at WARNING with the peer address, at most once per second per association; other send errors are unchanged. No `sendmmsg` is used for these sockets.
+
 ## Receive-path complexity
 
 Lab profiling showed the daemon CPU-bound on linear scans (every received datagram swept every entry slot and every retirement record). The core now has O(1) average cost per datagram:
