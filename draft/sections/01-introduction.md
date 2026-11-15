@@ -18,8 +18,6 @@ The following are non-goals:
 * Inter-frame ordering. Frames are delivered as they complete, and the design gives no ordering guarantee between frames on the ordinary path and frames on the fragmented path.
 * Header compression, which is outside the scope of this document.
 
-Line rate is a performance target that depends on the traffic mix, the link rate and the packet expansion. This document makes no throughput claim; any such figure is pending measurement.
-
 The first version targets statically provisioned unicast VTEP pairs in a managed fabric. The wire values in this document are provisional prototype choices.
 
 # Terminology
