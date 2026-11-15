@@ -33,7 +33,8 @@ void schcvx_rx_tolerant_sweep(struct schcvx_rx_tolerant *r,uint64_t now) {
 }
 bool schcvx_rx_tolerant_next_deadline(const struct schcvx_rx_tolerant *r,uint64_t *out) {
     bool found=schcvx_retire_next_deadline(&r->retire,out);
-    for(size_t i=0;i<r->cfg.max_entries;i++) if(r->entries[i].used && (!found || deadline(r,&r->entries[i])<*out)) { *out=deadline(r,&r->entries[i]); found=true; } return found;
+    for(size_t i=0;i<r->cfg.max_entries;i++) if(r->entries[i].used && (!found || deadline(r,&r->entries[i])<*out)) { *out=deadline(r,&r->entries[i]); found=true; }
+    return found;
 }
 static int deliver(struct schcvx_rx_tolerant *r,const uint8_t *p,size_t n,struct schcvx_delivery *out) {
     int v=schcvx_rx_validate(r->cfg.wire.cd_rule_id,r->cfg.vnis,r->cfg.vni_count,p,n,out);

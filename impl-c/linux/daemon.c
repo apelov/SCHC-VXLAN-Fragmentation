@@ -18,7 +18,9 @@ struct schcvx_daemon *schcvx_daemon_create(const struct schcvx_config *c,const s
 }
 int schcvx_process_frame(struct schcvx_daemon *d,size_t i,const uint8_t *frame,size_t len,uint64_t now) {
  struct schcvx_config_assoc *a; struct association *s; struct schcvx_tx_plan p; struct schcvx_assoc_wire w; uint8_t prefix[9],*buf; size_t n; uint64_t tag; unsigned j; int rc;
- if(!d || i>=d->config.count || (!frame && len))return -1; a=&d->config.assoc[i]; s=&d->associations[i]; rc=schcvx_tx_plan(&a->tx,len,&p); if(rc) { if(rc==-SCHCVX_E_TX_LENGTH) s->counters.sender_drop_length++; else s->counters.sender_drop_k_range++; return rc; }
+ if(!d || i>=d->config.count || (!frame && len))return -1;
+ a=&d->config.assoc[i]; s=&d->associations[i]; rc=schcvx_tx_plan(&a->tx,len,&p);
+ if(rc) { if(rc==-SCHCVX_E_TX_LENGTH) s->counters.sender_drop_length++; else s->counters.sender_drop_k_range++; return rc; }
  if(schcvx_packet_prefix(a->cd_rule_id,a->vnis[0],prefix)) return -1;
  if(p.unfragmented) { buf=malloc(len+9); if(!buf)return -1; memcpy(buf,prefix,9); memcpy(buf+9,frame,len); rc=d->io.send_datagram(d->io.context,i,buf,len+9); free(buf); if(!rc)s->counters.packets_sent_unfragmented++; return rc; }
  rc=schcvx_dtag_allocate(&s->dtag,now,&tag); if(rc) { if(rc==-SCHCVX_E_DTAG_QUARANTINE) s->counters.sender_drop_quarantine++; else s->counters.sender_drop_dtag_admission_stopped++; return rc; }

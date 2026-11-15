@@ -56,8 +56,14 @@ int schcvx_config_load(const char *path,struct schcvx_config *out,char *error,si
  if(schcvx_wire_config_check(&w)) return fail(error,error_size,section,"fr_rule_id","not prefix-free");
  if(schcvx_tx_config_check(&a->tx)) return fail(error,error_size,section,"pmtu/max_frame_len/max_fragments","invalid transmit configuration");
  if(!a->S || !a->I || !a->R || !a->Q || !a->counters_interval || !a->max_entries || !a->max_bytes) return fail(error,error_size,section,"timers/limits","must be positive");
- if(UINT64_MAX-a->S<a->B) return fail(error,error_size,section,"S/B","overflow"); W=a->S+a->B; if(a->R<W) return fail(error,error_size,section,"R","must be >= S + B"); if(a->tolerant && a->Delta<W) return fail(error,error_size,section,"Delta","must be >= S + B");
- if(UINT64_MAX-W<a->I) return fail(error,error_size,section,"I","overflow"); D=W+a->I; if(a->Delta>D) D=a->Delta; if(UINT64_MAX-a->B<D || UINT64_MAX-(a->B+D)<a->R || a->Q<=a->B+D+a->R) return fail(error,error_size,section,"Q","must exceed B + D + R");
+ if(UINT64_MAX-a->S<a->B) return fail(error,error_size,section,"S/B","overflow");
+ W=a->S+a->B;
+ if(a->R<W) return fail(error,error_size,section,"R","must be >= S + B");
+ if(a->tolerant && a->Delta<W) return fail(error,error_size,section,"Delta","must be >= S + B");
+ if(UINT64_MAX-W<a->I) return fail(error,error_size,section,"I","overflow");
+ D=W+a->I;
+ if(a->Delta>D) D=a->Delta;
+ if(UINT64_MAX-a->B<D || UINT64_MAX-(a->B+D)<a->R || a->Q<=a->B+D+a->R) return fail(error,error_size,section,"Q","must exceed B + D + R");
  if(schcvx_dtag_init(&d,a->tx.variant==SCHCVX_COMPACT?32:60,a->dtag_start,0,a->Q,a->dtag_rate,a->dtag_burst)) return fail(error,error_size,section,"dtag_rate/dtag_burst/dtag_start","invalid allocator configuration");
  }
  *out=c; return 0;

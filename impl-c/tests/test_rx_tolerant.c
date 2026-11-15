@@ -11,7 +11,8 @@ static void make(unsigned count) {
     uint8_t prefix[9], frame[200]; memset(frame,0x5a,sizeof(frame)); CHECK(!schcvx_packet_prefix(0,vni,prefix));
     struct schcvx_tx_plan plan={false,(uint8_t)count,23,(uint32_t)(count==2?23:1)};
     size_t frame_len=(count-1)*23+plan.last_len-9; CHECK(frame_len<=sizeof(frame));
-    for(unsigned i=0;i<count;i++) CHECK(!schcvx_tx_fragment(&plan,&wire,rule,42,prefix,frame,frame_len,i,fragments[i],sizeof(fragments[i]),&lengths[i])); k=count;
+    for(unsigned i=0;i<count;i++) CHECK(!schcvx_tx_fragment(&plan,&wire,rule,42,prefix,frame,frame_len,i,fragments[i],sizeof(fragments[i]),&lengths[i]));
+    k=count;
 }
 static void init(struct schcvx_rx_tolerant *r,struct schcvx_rx_tolerant_pool *pool,struct schcvx_counters *c,void **mem,uint64_t inactivity) {
     *pool=(struct schcvx_rx_tolerant_pool){10,2000,10,0,0,0}; memset(c,0,sizeof(*c));

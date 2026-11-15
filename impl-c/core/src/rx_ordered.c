@@ -31,7 +31,8 @@ void schcvx_rx_ordered_sweep(struct schcvx_rx_ordered *r, uint64_t now) {
 }
 bool schcvx_rx_ordered_next_deadline(const struct schcvx_rx_ordered *r, uint64_t *deadline) {
     bool found=schcvx_retire_next_deadline(&r->retire,deadline);
-    for (size_t i=0;i<r->cfg.max_entries;i++) if (r->entries[i].used && (!found || r->entries[i].deadline<*deadline)) { *deadline=r->entries[i].deadline; found=true; } return found;
+    for (size_t i=0;i<r->cfg.max_entries;i++) if (r->entries[i].used && (!found || r->entries[i].deadline<*deadline)) { *deadline=r->entries[i].deadline; found=true; }
+    return found;
 }
 static int deliver(struct schcvx_rx_ordered *r, const uint8_t *p, size_t n, struct schcvx_delivery *out) {
     int result=schcvx_rx_validate(r->cfg.wire.cd_rule_id,r->cfg.vnis,r->cfg.vni_count,p,n,out);
