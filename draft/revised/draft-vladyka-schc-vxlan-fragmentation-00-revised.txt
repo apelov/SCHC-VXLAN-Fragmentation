@@ -1,0 +1,1792 @@
+
+
+
+
+SCHC                                                          A. Vladyka
+Internet-Draft                                                          
+Intended status: Standards Track                                A. Pelov
+Expires: 18 May 2027                                      IMT Atlantique
+                                                        14 November 2026
+
+
+              SCHC No-ACK Fragmentation of VXLAN Payloads
+               draft-vladyka-schc-vxlan-fragmentation-00
+
+Abstract
+
+   This document proposes a SCHC No-ACK profile for carrying an
+   oversized VXLAN payload over a managed UDP path.  The default binding
+   fragments the uncompressed VXLAN header and Ethernet frame.  A four-
+   bit fragment counter supports up to eight fragments.  An optional
+   receiver procedure for reordering is described separately because it
+   changes the RFC 8724 No-ACK receiver behavior.  The earlier indexed
+   fragmentation proposal is retained in an appendix for comparison.
+   The mapping and operational parameters require working group review.
+
+Status of This Memo
+
+   This Internet-Draft is submitted in full conformance with the
+   provisions of BCP 78 and BCP 79.
+
+   Internet-Drafts are working documents of the Internet Engineering
+   Task Force (IETF).  Note that other groups may also distribute
+   working documents as Internet-Drafts.  The list of current Internet-
+   Drafts is at https://datatracker.ietf.org/drafts/current/.
+
+   Internet-Drafts are draft documents valid for a maximum of six months
+   and may be updated, replaced, or obsoleted by other documents at any
+   time.  It is inappropriate to use Internet-Drafts as reference
+   material or to cite them other than as "work in progress."
+
+   This Internet-Draft will expire on 18 May 2027.
+
+Copyright Notice
+
+   Copyright (c) 2026 IETF Trust and the persons identified as the
+   document authors.  All rights reserved.
+
+   This document is subject to BCP 78 and the IETF Trust's Legal
+   Provisions Relating to IETF Documents (https://trustee.ietf.org/
+   license-info) in effect on the date of publication of this document.
+   Please review these documents carefully, as they describe your rights
+   and restrictions with respect to this document.  Code Components
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                  [Page 1]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   extracted from this document must include Revised BSD License text as
+   described in Section 4.e of the Trust Legal Provisions and are
+   provided without warranty as described in the Revised BSD License.
+
+Table of Contents
+
+   1.  Introduction  . . . . . . . . . . . . . . . . . . . . . . . .   3
+   2.  Conventions and Terms . . . . . . . . . . . . . . . . . . . .   4
+   3.  Binding and Profile . . . . . . . . . . . . . . . . . . . . .   4
+   4.  Fragment Format . . . . . . . . . . . . . . . . . . . . . . .   5
+     4.1.  FCN Values  . . . . . . . . . . . . . . . . . . . . . . .   5
+     4.2.  Reassembly Check Sequence . . . . . . . . . . . . . . . .   6
+   5.  Sender Procedure  . . . . . . . . . . . . . . . . . . . . . .   6
+   6.  Ordered Receiver  . . . . . . . . . . . . . . . . . . . . . .   7
+   7.  Optional Reordering-Tolerant Receiver . . . . . . . . . . . .   7
+   8.  DTag Reuse and Restart  . . . . . . . . . . . . . . . . . . .   8
+   9.  Examples  . . . . . . . . . . . . . . . . . . . . . . . . . .   9
+   10. Security Considerations . . . . . . . . . . . . . . . . . . .   9
+   11. IANA Considerations . . . . . . . . . . . . . . . . . . . . .  10
+   12. Open Issues . . . . . . . . . . . . . . . . . . . . . . . . .  10
+   13. References  . . . . . . . . . . . . . . . . . . . . . . . . .  10
+     13.1.  Normative References . . . . . . . . . . . . . . . . . .  10
+     13.2.  Informative References . . . . . . . . . . . . . . . . .  11
+   Appendix A.  Earlier Indexed Out-of-Order Proposal  . . . . . . .  11
+     A.1.  Introduction  . . . . . . . . . . . . . . . . . . . . . .  11
+     A.2.  Terminology . . . . . . . . . . . . . . . . . . . . . . .  12
+     A.3.  Placement and Interoperability  . . . . . . . . . . . . .  13
+     A.4.  Relationship to SCHC  . . . . . . . . . . . . . . . . . .  14
+     A.5.  Fragment Format . . . . . . . . . . . . . . . . . . . . .  16
+       A.5.1.  Header  . . . . . . . . . . . . . . . . . . . . . . .  16
+       A.5.2.  Mode Fields and Binding Fields  . . . . . . . . . . .  17
+       A.5.3.  Reassembly Check Sequence . . . . . . . . . . . . . .  18
+       A.5.4.  UDP Checksum  . . . . . . . . . . . . . . . . . . . .  18
+       A.5.5.  UDP Port Selection  . . . . . . . . . . . . . . . . .  18
+       A.5.6.  Provisional Status  . . . . . . . . . . . . . . . . .  19
+     A.6.  Sender Procedure  . . . . . . . . . . . . . . . . . . . .  19
+     A.7.  Receiver Procedure  . . . . . . . . . . . . . . . . . . .  20
+     A.8.  Discard Deadline  . . . . . . . . . . . . . . . . . . . .  22
+       A.8.1.  Choosing Δ  . . . . . . . . . . . . . . . . . . . . .  23
+       A.8.2.  Scope of the Deadline . . . . . . . . . . . . . . . .  23
+     A.9.  Frame Identification and Restart  . . . . . . . . . . . .  23
+       A.9.1.  Sender Restart  . . . . . . . . . . . . . . . . . . .  24
+       A.9.2.  Receiver Restart  . . . . . . . . . . . . . . . . . .  24
+       A.9.3.  Status  . . . . . . . . . . . . . . . . . . . . . . .  24
+       A.9.4.  Retirement Bound L  . . . . . . . . . . . . . . . . .  24
+     A.10. Default Operational Profile . . . . . . . . . . . . . . .  25
+       A.10.1.  Fragment Count . . . . . . . . . . . . . . . . . . .  25
+       A.10.2.  Minimum-PMTU Validation  . . . . . . . . . . . . . .  25
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                  [Page 2]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+       A.10.3.  Configured Bounds  . . . . . . . . . . . . . . . . .  25
+       A.10.4.  Meaning and Configuration of Δ and L . . . . . . . .  26
+     A.11. Manageability Considerations  . . . . . . . . . . . . . .  26
+     A.12. Security Considerations . . . . . . . . . . . . . . . . .  27
+       A.12.1.  Peer and VNI Admission . . . . . . . . . . . . . . .  27
+       A.12.2.  Spoofing . . . . . . . . . . . . . . . . . . . . . .  27
+       A.12.3.  State Exhaustion . . . . . . . . . . . . . . . . . .  28
+       A.12.4.  Replay . . . . . . . . . . . . . . . . . . . . . . .  28
+       A.12.5.  Other Considerations . . . . . . . . . . . . . . . .  28
+     A.13. IANA Considerations . . . . . . . . . . . . . . . . . . .  28
+     A.14. Examples  . . . . . . . . . . . . . . . . . . . . . . . .  29
+       A.14.1.  Example A: Last-Fragment-First Completion  . . . . .  29
+       A.14.2.  Example B: Deadline Expiry . . . . . . . . . . . . .  30
+     A.15. Test and Benchmark Considerations . . . . . . . . . . . .  32
+   Authors' Addresses  . . . . . . . . . . . . . . . . . . . . . . .  32
+
+1.  Introduction
+
+   VXLAN [RFC7348] carries Ethernet frames over UDP.  When an
+   encapsulated frame exceeds the underlay IP path MTU (PMTU), this
+   proposal sends fragments in separate UDP datagrams between configured
+   VTEPs.  The receiver checks reassembly integrity before forwarding
+   the reconstructed frame.  Frames that fit continue to use ordinary
+   VXLAN.  No acknowledgments or retransmissions are introduced.
+   Unicast peer pairs in a managed fabric are the initial scope;
+   broadcast, unknown unicast and multicast traffic can be handled by
+   ingress replication to separately configured unicast peers.
+
+   The primary profile uses the No-ACK fragmentation and reassembly
+   procedures of [RFC8724].  These procedures assume in-order delivery;
+   a path and receiver processing that preserve order are therefore
+   required for the ordered receiver.  The sender transmits fragments in
+   packet order.  This document also describes an optional reordering-
+   tolerant receiver extension that changes the treatment of All-1 and
+   is not the unmodified No-ACK receiver procedure.  Peer configuration
+   determines which behavior is available.  No inter-frame delivery
+   order is guaranteed.
+
+   RFC 7348 Section 4.3 states that VTEPs MUST NOT fragment VXLAN
+   packets.  Here the input to SCHC is a VXLAN UDP payload and each
+   fragment is carried in a separate UDP datagram on a distinct
+   configured binding; IP fragmentation of an ordinary VXLAN packet is
+   not used.  Whether this distinction requires clarification of RFC
+   7348 is an open standards issue, not a claim that the question is
+   resolved.
+
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                  [Page 3]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+2.  Conventions and Terms
+
+   The key words "MUST", "MUST NOT", "REQUIRED", "SHALL", "SHALL NOT",
+   "SHOULD", "SHOULD NOT", "RECOMMENDED", "NOT RECOMMENDED", "MAY", and
+   "OPTIONAL" in this document are to be interpreted as described in
+   BCP 14 [RFC2119] [RFC8174] when, and only when, they appear in all
+   capitals, as shown here.
+
+   A peer association identifies configured local and remote tunnel
+   endpoints, direction, binding, RuleID, widths, timers and resource
+   limits.  PMTU is the underlay IP path MTU.  A packet is the
+   fragmented unit described below.  The first-arrival deadline is an
+   optional extension parameter distinct from the RFC 8724 inactivity
+   timer.  All integer and bit fields are transmitted most significant
+   bit first.
+
+3.  Binding and Profile
+
+   The sender forms the eight-byte VXLAN header followed by the complete
+   Ethernet frame as presented to the tunnel, including carried VLAN
+   tags and excluding FCS.  This byte sequence is the packet supplied to
+   fragmentation.  The default binding passes these bytes without
+   compression, called NoCompress in this document.  It does not add a
+   separate compression RuleID.  The SCHC architectural mapping of this
+   direct binding, including whether a separate NoCompress C/D RuleID is
+   needed, remains an open issue for working group review.  No wire-
+   level compression rule is specified here.
+
+   Fragment datagrams use a locally configured UDP destination port
+   distinct from ordinary VXLAN.  Both peers MUST know the binding and
+   profile before traffic is sent.  There is no in-band negotiation or
+   version field.  The association identifies the wire variant before
+   the RuleID is parsed.  The same outer source port and five-tuple
+   SHOULD be used for all fragments of a packet to support flow
+   affinity; the receiver identifies the peer independently of source
+   UDP port.  A sender MUST generate a UDP checksum for each fragment
+   and the receiver MUST reject a zero or incorrect checksum, including
+   over IPv4.  Normal VXLAN behavior is unchanged.
+
+   Optional future compression requires independently specified matching
+   rules and explicit context provisioning at both peers.  It cannot be
+   inferred from this profile.  Rule mismatch can misroute traffic if
+   VNI is elided; a future rule should preserve the VNI unless
+   equivalent isolation is assured.
+
+
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                  [Page 4]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+4.  Fragment Format
+
+   The No-ACK W field is absent.  Each UDP payload carries a RuleID,
+   DTag, four-bit FCN and fragment payload; the All-1 format also
+   carries the 32-bit RCS immediately after the FCN, before its payload.
+   Each fragment contains one nonempty tile.  Field widths and bit order
+   are as follows:
+
+    +==========+========+======+======+================+==============+
+    | Variant  | RuleID | DTag | FCN  | Regular header | All-1 header |
+    +==========+========+======+======+================+==============+
+    | Compact  | 4 bits | 32   | 4    | 5 bytes        | 9 bytes      |
+    |          |        | bits | bits |                |              |
+    +----------+--------+------+------+----------------+--------------+
+    | Extended | 8 bits | 60   | 4    | 9 bytes        | 13 bytes     |
+    |          |        | bits | bits |                |              |
+    +----------+--------+------+------+----------------+--------------+
+
+                     Table 1: Configured wire variants
+
+   DTag size is configurable for each association and RuleID; additional
+   sizes require the sum of RuleID, DTag and FCN widths to be a multiple
+   of eight bits.  Both ends MUST agree on all sizes and meanings before
+   parsing.  Width or RuleID changes MUST NOT occur while associated
+   fragments or retirement records remain live.  The default proposed
+   variant is compact.  The RuleID identifies the configured
+   fragmentation rule; RuleID assignment is local to the association in
+   this version.  There is no W field or padding for these byte-aligned
+   messages.
+
+4.1.  FCN Values
+
+   The FCN is four bits, written Fccc for regular fragments.  F
+   identifies the first fragment.  The three-bit c is the number of
+   regular fragments remaining after this one, excluding All-1.  For K
+   fragments, 2 <= K <= 8, the first FCN is 1 followed by K-2;
+   subsequent regular FCNs are 0 followed by the countdown from K-3 to
+   zero.  The final FCN is 1111.  Values 0110 and 0111 are invalid.  The
+   first regular tile contains the complete VXLAN header.
+
+
+
+
+
+
+
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                  [Page 5]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+          +===+================================================+
+          | K | FCNs in sender order                           |
+          +===+================================================+
+          | 2 | 1000, 1111                                     |
+          +---+------------------------------------------------+
+          | 3 | 1001, 0000, 1111                               |
+          +---+------------------------------------------------+
+          | 4 | 1010, 0001, 0000, 1111                         |
+          +---+------------------------------------------------+
+          | 8 | 1110, 0101, 0100, 0011, 0010, 0001, 0000, 1111 |
+          +---+------------------------------------------------+
+
+                      Table 2: Example FCN sequences
+
+   RFC 8724 Section 8.4.1 permits a profile to set FCN width and define
+   non-All-1 values.  This encoding does not by itself change the RFC
+   receiver's behavior.
+
+4.2.  Reassembly Check Sequence
+
+   The RCS is CRC-32C over the entire packet in wire order, including
+   its VXLAN header.  The Castagnoli polynomial is 0x1edc6f41 (reflected
+   0x82f63b78); input and output are reflected, the initial register and
+   final XOR are 0xffffffff, and the check value for ASCII 123456789 is
+   0xe3069283.  Serialize the result most significant byte first.  The
+   profile chooses CRC-32C instead of the Ethernet CRC recommended in
+   Section 8.2.3 of [RFC8724].  No padding is present for the byte-
+   aligned binding described here.  The UDP checksum and RCS detect
+   errors but do not authenticate a sender.
+
+5.  Sender Procedure
+
+   Let P be the configured IP PMTU and H the outer IP header size
+   including options and any other encapsulation consuming the same PMTU
+   budget.  An Ethernet frame of E bytes fits ordinary VXLAN if E+8 <=
+   P-H-8.  Otherwise, if the peer is not configured for this profile,
+   the sender drops and counts the frame.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                  [Page 6]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   For an oversized frame let A be the All-1 header size, 9 or 13 bytes,
+   and set C=P-H-8-A.  The sender MUST require C>=8 and compute
+   K=ceil((E+8)/C).  It MUST reject frames outside configured size
+   limits or K outside 2..8.  It snapshots C for the packet, divides the
+   packet into K contiguous nonempty tiles, with every regular tile C
+   bytes and the last tile at most C bytes, and transmits them in order.
+   The unused four-byte RCS allowance in regular fragments keeps the
+   sizing uniform.  IPv4 fragmentation MUST NOT be requested and IPv6
+   source fragmentation MUST NOT be used.  PMTU discovery is not
+   specified; [RFC8899] describes a possible method.  UDP operational
+   considerations are discussed in [RFC8085].
+
+   The sender allocates one DTag for the complete packet and uses the
+   same RuleID and DTag on every fragment.  No SCHC ACK, ACK REQ or
+   retransmission is sent.  This profile does not send Sender-Abort.
+   Each association must be provisioned so its minimum supported PMTU
+   and maximum frame length fit within eight fragments.
+
+6.  Ordered Receiver
+
+   For the ordered receiver, Section 8.4.1 of [RFC8724] governs No-ACK
+   processing.  The receiver assembles regular fragment payloads in
+   reception order and resets its inactivity timer on each regular
+   fragment.  On All-1 it appends the payload and checks the RCS; if the
+   check fails it drops the packet, and reassembly concludes.  On
+   inactivity timer expiry it drops the incomplete packet.  The timeout
+   and RCS parameters are configured per rule.  An All-1 arriving early
+   is not held for missing fragments by this receiver.
+
+   The receiver MUST validate peer association, UDP checksum, rule and
+   local resource bounds.  Before delivery it validates the
+   reconstructed VXLAN header and authorizes the VNI for the peer.  It
+   learns MAC addresses only after successful reassembly and
+   authorization.  CRC checks cannot establish sender identity or
+   prevent intentional collisions.  A path that reorders fragments can
+   cause loss even if all fragments arrive.
+
+7.  Optional Reordering-Tolerant Receiver
+
+   This section describes an experimental receiver extension, not
+   unmodified RFC 8724 No-ACK.  In particular, it may hold an early
+   All-1 rather than immediately performing the integrity check and
+   concluding reassembly.  Its standards vehicle, including whether an
+   RFC update or a separately specified mode is appropriate, remains
+   open.  A sender uses the same ordered sequence and cannot assume a
+   receiver supports this extension without configuration.
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                  [Page 7]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   The receiver keys state by peer association, direction, RuleID and
+   DTag.  Subject to per-peer and global entry and byte limits, any
+   valid fragment may open an entry.  An entry opened before the first
+   fragment is an orphan and its VNI is not yet known.  A first fragment
+   reveals the complete VXLAN header in the NoCompress binding; the
+   receiver checks peer/VNI authorization and applies tenant accounting.
+   It MUST reject unauthorized VNIs and MUST NOT learn MAC addresses
+   before delivery.
+
+   The receiver stores each regular fragment by countdown and the final
+   fragment separately.  It ignores identical duplicates and aborts on
+   conflicting duplicates.  When the first marker arrives it supplies
+   n=K-2; the expected regular positions are n down to zero, with the
+   first marker only at n.  Stored fragments outside these positions or
+   with incompatible markers cause the entry to be discarded.  Regular
+   tiles have equal length, the final tile is no longer, and all bounds
+   are checked before buffering.  Completion requires the first
+   fragment, all expected regular positions and All-1.  The receiver
+   assembles in countdown order, verifies the RCS once, validates the
+   VXLAN unit and delivers once.  On a complete packet with an incorrect
+   RCS it discards immediately.
+
+   A fixed total deadline is measured from the first admitted fragment
+   with a monotonic receive timestamp.  A fragment arriving at or after
+   the deadline is late.  Duplicates do not extend it.  A configured
+   inactivity timer may expire sooner; regular arrivals reset that
+   timer.  The receiver discards incomplete state at the earlier expiry.
+   Processing queues and batched timer sweeps MUST preserve the decision
+   based on receive timestamps, including fragments received before the
+   deadline but processed later.  The deadline bounds reception of
+   pieces, not end-to-end latency.
+
+8.  DTag Reuse and Restart
+
+   DTag scope is the configured sending association and RuleID, across
+   its VNIs and sender workers.  Distinct overlapping packets MUST use
+   distinct DTags as required by [RFC8724].  This proposal also requires
+   a deployment-specific quarantine to prevent late duplicates from
+   being associated with a new packet.  Starting from zero on restart is
+   safe only after that quarantine or with a distinguishable new
+   association generation.
+
+   Let B bound the time from the last emission of any copy of a fragment
+   to its final possible arrival, including queueing and replication.
+   Let D be the maximum receiver entry lifetime, and R be the retirement
+   retention after completion, abort or expiry.  The receiver retains a
+   record for at least B after retirement and reserves bounded capacity
+   for it at admission.  The sender MUST NOT reuse a DTag until a
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                  [Page 8]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   conservative interval greater than B+D+R, with timing margin, has
+   elapsed since its last emission.  If that emission time is unknown
+   following restart, it waits the full interval after restart.  If the
+   configured width and packet rate exhaust the available DTags before
+   safe reuse, the sender stops admission rather than wrapping early.
+   The bound must include all relevant paths and scheduling; without a
+   defensible B the guarantee is best effort.
+
+   Receiver restart loses active and retired state.  Before accepting
+   the old association again, it must drain old traffic for at least B
+   with sender admission coordinated, or use a receiver-visible new
+   generation that rejects old traffic.  Persistent DTag allocation or
+   generation mechanisms are not defined on the wire here.  An
+   authenticated underlay with anti-replay is needed where active replay
+   is a threat; CRC and finite retirement records are not
+   authentication.
+
+9.  Examples
+
+   With compact headers, IPv4 without options, P=1500 and H=20, C=1463.
+   An untagged 1514-byte Ethernet frame yields a 1522-byte VXLAN
+   payload, split into 1463 and 59 bytes.  FCNs are 1000 and 1111, and
+   outer IP lengths are 1496 and 96 bytes.  For a 9014-byte frame, seven
+   fragments suffice.  With IPv6 and P=1280, H=40, C=1223 and the same
+   9014-byte frame requires eight fragments.  These figures exclude
+   additional encapsulation and require corresponding configured frame
+   limits.
+
+   A four-fragment packet has FCNs 1010, 0001, 0000, 1111.  A tolerant
+   receiver may receive 1111, 0000, 1010, 0001: it holds the final
+   fragment, learns the expected positions from 1010, and verifies the
+   RCS after 0001 arrives.  An ordered RFC 8724 receiver instead
+   concludes its processing on receipt of the early All-1.
+
+10.  Security Considerations
+
+   Only configured peers should be admitted.  Bound orphan state, total
+   incomplete packets, per-peer and per-tenant bytes, and retirement
+   records.  A VNI is unavailable until the first fragment, so resources
+   used by earlier arrivals cannot be charged to a tenant at admission.
+   A sender can exhaust resources or forge headers; checksums and CRC do
+   not prevent these attacks.  Use authenticated transport and anti-
+   replay where the threat model requires them.  A receiver must enforce
+   VNI authorization after it learns the VNI and again before delivery
+   as appropriate.  Configuration errors, mismatched rules or reuse of
+   identifiers can cause loss or cross-packet mixing.
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                  [Page 9]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+11.  IANA Considerations
+
+   This version requests no IANA action.  UDP port assignment, shared
+   SCHC port demultiplexing, RuleID allocation, and any registry
+   implications remain open.
+
+12.  Open Issues
+
+   *  Confirm the direct NoCompress binding and SCHC packet mapping,
+      including whether a compression RuleID is required.
+
+   *  Determine the standards vehicle for the optional tolerant receiver
+      and its relationship to RFC 8724 and RFC 7348.
+
+   *  Specify capability provisioning, UDP demultiplexing and any IANA
+      requests.
+
+   *  Set interoperable timer, packet lifetime, memory and frame-size
+      parameters; validate DTag width against actual rate and restart
+      requirements.
+
+   *  Define and verify any optional compression rules separately.
+
+13.  References
+
+13.1.  Normative References
+
+   [RFC2119]  Bradner, S., "Key words for use in RFCs to Indicate
+              Requirement Levels", BCP 14, RFC 2119,
+              DOI 10.17487/RFC2119, March 1997,
+              <https://www.rfc-editor.org/rfc/rfc2119>.
+
+   [RFC7348]  Mahalingam, M., Dutt, D., Duda, K., Agarwal, P., Kreeger,
+              L., Sridhar, T., Bursell, M., and C. Wright, "Virtual
+              eXtensible Local Area Network (VXLAN): A Framework for
+              Overlaying Virtualized Layer 2 Networks over Layer 3
+              Networks", RFC 7348, DOI 10.17487/RFC7348, August 2014,
+              <https://www.rfc-editor.org/rfc/rfc7348>.
+
+   [RFC8174]  Leiba, B., "Ambiguity of Uppercase vs Lowercase in RFC
+              2119 Key Words", BCP 14, RFC 8174, DOI 10.17487/RFC8174,
+              May 2017, <https://www.rfc-editor.org/rfc/rfc8174>.
+
+   [RFC8724]  Minaburo, A., Toutain, L., Gomez, C., Barthel, D., and JC.
+              Zuniga, "SCHC: Generic Framework for Static Context Header
+              Compression and Fragmentation", RFC 8724,
+              DOI 10.17487/RFC8724, April 2020,
+              <https://www.rfc-editor.org/rfc/rfc8724>.
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 10]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+13.2.  Informative References
+
+   [I-D.ietf-schc-protocol-numbers]
+              Moskowitz, R., Thubert, P., Gomez, C., Minaburo, A., and
+              M. Blanchet, "Protocol Numbers for SCHC", Work in
+              Progress, Internet-Draft, draft-ietf-schc-protocol-
+              numbers-06, 23 December 2025,
+              <https://datatracker.ietf.org/doc/html/draft-ietf-schc-
+              protocol-numbers-06>.
+
+   [RFC4459]  Savola, P., "MTU and Fragmentation Issues with In-the-
+              Network Tunneling", RFC 4459, DOI 10.17487/RFC4459, April
+              2006, <https://www.rfc-editor.org/rfc/rfc4459>.
+
+   [RFC8085]  Eggert, L., Fairhurst, G., and G. Shepherd, "UDP Usage
+              Guidelines", BCP 145, RFC 8085, DOI 10.17487/RFC8085,
+              March 2017, <https://www.rfc-editor.org/rfc/rfc8085>.
+
+   [RFC8899]  Fairhurst, G., Jones, T., Tüxen, M., Rüngeler, I., and T.
+              Völker, "Packetization Layer Path MTU Discovery for
+              Datagram Transports", RFC 8899, DOI 10.17487/RFC8899,
+              September 2020, <https://www.rfc-editor.org/rfc/rfc8899>.
+
+Appendix A.  Earlier Indexed Out-of-Order Proposal
+
+   This appendix preserves the earlier draft's technical sections for
+   comparison.  Its wire format and procedures are an alternative, not
+   part of the main profile above; statements within this appendix
+   describe that earlier proposal.  The existing reference model and
+   generated examples apply to this appendix only.  The original
+   standalone source remains available separately.
+
+A.1.  Introduction
+
+   VXLAN [RFC7348] carries Ethernet frames in UDP datagrams.  When the
+   encapsulated frame exceeds the underlay IP path MTU (PMTU), standard
+   VXLAN cannot carry it, and VTEPs MUST NOT fragment VXLAN packets
+   (Section 4.3 of [RFC7348]).  This document specifies an extension
+   that fragments such a frame into several UDP datagrams between a pair
+   of VTEPs, reassembles it at the receiver, and delivers it only after
+   successful reassembly.  General guidance on UDP usage and on MTU
+   issues with tunnels is in [RFC8085] and [RFC4459].
+
+   This version is a framing proposal, presented to seek working group
+   feedback and adoption.  Its wire format is provisional and several
+   parameters are left as open issues.
+
+   The requirements are:
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 11]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   *  Preserve the full input Ethernet frame as presented to the tunnel,
+      including any tags carried by the tunnel, and excluding the
+      Ethernet FCS.
+
+   *  Keep standard VXLAN for frames that fit.
+
+   *  Deliver a fragmented frame only after successful reassembly, with
+      bounded waiting time and bounded receiver state.
+
+   *  Tolerate reordering of fragments.
+
+   *  Use no acknowledgments and no retransmissions in the data path.
+
+   The following are non-goals:
+
+   *  Acknowledgment, retransmission or any other loss recovery.  A
+      frame with a missing fragment is discarded at its deadline.
+
+   *  Inter-frame ordering.  Frames are delivered as they complete, and
+      the design gives no ordering guarantee between frames on the
+      ordinary path and frames on the fragmented path.
+
+   *  Header compression, which is outside the scope of this document.
+
+   Line rate is a performance target that depends on the traffic mix,
+   the link rate and the packet expansion.  This document makes no
+   throughput claim; any such figure is pending measurement.
+
+   The first version targets statically provisioned unicast VTEP pairs
+   in a managed fabric.  The wire values in this document are
+   provisional prototype choices.
+
+A.2.  Terminology
+
+   The key words in this appendix have the meanings defined in the main
+   text.
+
+   The following terms are used in this document.
+
+   VTEP:  VXLAN Tunnel End Point, as in [RFC7348].
+
+   PMTU:  The underlay IP path MTU, excluding outer Ethernet overhead.
+      It is a sender-side configuration value per peer and direction.
+
+   Slice:  A nonempty contiguous part of the original Ethernet frame
+      carried in one fragment.
+
+   Frame ID:  An 8-byte identifier, unique across active and recently
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 12]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+      retired frames within the configured peer association and VNI.
+
+   RCS:  Reassembly Check Sequence, a CRC-32C over the original frame
+      bytes, carried at the end of the final fragment.
+
+   Δ:  The discard deadline.  A reassembly entry expires at the first
+      arrival time plus Δ.
+
+   L:  A configured upper bound on the arrival spread of all copies of
+      fragments of one frame, including duplicates.  Retirement records
+      are kept for L after retirement.
+
+   Peer association:  The configured relationship between a local tunnel
+      endpoint and a remote VTEP, with its RuleID, PMTU, port, and
+      capabilities.
+
+A.3.  Placement and Interoperability
+
+   Transmit placement is after bridge forwarding and before tunnel
+   encapsulation.  Receive placement is after tunnel classification and
+   before bridge ingress.  Both paths feed the same VNI-to-bridge
+   mapping.  A VTEP learns source MAC addresses only from complete
+   frames.
+
+   A sender behaves as follows:
+
+   *  If the frame fits, it emits RFC 7348 VXLAN.
+
+   *  If the frame exceeds the VXLAN payload budget and both peers are
+      configured for the extension, it encapsulates each slice in a
+      separate UDP datagram sent to a distinct, configured destination
+      port.
+
+   *  If the extension is unavailable or the configured limits cannot
+      carry the frame, it drops the oversized frame and increments a
+      local counter (drop-and-count).
+
+   Scope is unicast between VTEPs.  BUM traffic is in scope only through
+   ingress replication to individually provisioned unicast peers.  Each
+   copy uses that peer's capabilities and PMTU.
+
+   The extension carries the semantics of the Ethernet overlay VNI but
+   uses its own UDP payload format.  It does not fragment an already
+   encapsulated VXLAN packet at IP.  The configured UDP destination port
+   selects this format.  The sender uses the same source UDP port and
+   outer five-tuple for every fragment of a frame, so that ordinary
+   flow-hash affinity applies, and derives the source port from the
+   inner frame as it does for ordinary VXLAN (Section 5 of [RFC7348]).
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 13]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   The receiver identifies a configured peer independently of the source
+   UDP port.  The protocol tolerates reordering even when path affinity
+   fails.
+
+   NAT is outside the target deployment.  Where one is present: a
+   rewritten source port does not matter; a rewritten outer source
+   address must be the address configured for the peer association; and
+   because the two directions do not form one symmetric flow, the
+   destination port needs a static mapping.
+
+   The wire format and all values in this document are provisional
+   prototype choices and are subject to change.  The UDP port is locally
+   configured in this version.
+
+   Open Issue: UDP demultiplexing, header versioning, any IANA request,
+   and the need for peer capability provisioning before oversized frames
+   are sent are not settled in this version.
+
+A.4.  Relationship to SCHC
+
+   Section 8.4.1 of [RFC8724] defines the No-ACK fragmentation mode.  It
+   assumes in-order delivery of fragments and concludes reassembly on
+   All-1.  The indexed receiver in this document can accept the final
+   fragment first and wait for missing indices, so No-ACK does not fit.
+
+   A Profile can set the FCN size above one bit and define FCN values
+   other than All-1 (Section 8.4.1 of [RFC8724]), so a No-ACK Profile
+   with several fragments is possible.  It still lacks what an out-of-
+   order receiver needs.  The All-1 value identifies the end, but
+   nothing in the fragments states how many fragments the frame has.  A
+   receiver that holds the All-1 fragment and several others cannot tell
+   whether it holds all of them, unless the Profile fixes the fragment
+   count; here the count varies with the frame length.  Carrying the
+   count in every fragment, with an ascending index, lets any fragment,
+   including the final one, open an entry with a bitmap of the right
+   size.
+
+   This document defines a new SCHC fragmentation mode, named Out-of-
+   Order No-ACK, with a UDP/Ethernet binding.  It is a new mode defined
+   by its differences from No-ACK, not an extension of No-ACK.  Open
+   Issue: how the mode integrates with the SCHC framework is pending
+   working-group agreement.
+
+   The mode differs from No-ACK in three ways:
+
+   *  *Index and count instead of FCN.* In No-ACK, the FCN All-1 value
+      only signals the last tile (Section 8.2.4 of [RFC8724]), the
+      recommended FCN size is one bit, and the meaning of other values
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 14]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+      is left to the Profile (Section 8.4.1 of [RFC8724]).  That
+      suffices for an in-order receiver.  A receiver that may see the
+      final fragment first needs the position of every fragment and the
+      total number of fragments from whichever fragment arrives first.
+      Each fragment therefore carries an ascending index and the count.
+      The index plays the role of the FCN; the count has no RFC 8724
+      counterpart.
+
+   *  *Fixed deadline instead of Inactivity Timer.* The No-ACK receiver
+      resets the Inactivity Timer on each Regular fragment
+      (Section 8.4.1.2 of [RFC8724]).  Here the deadline is fixed at the
+      first arrival and never extended.
+
+   *  *Frame ID and retirement record.* The Frame ID plays the role of
+      DTag, sized so that a retired frame stays recognizable while late
+      fragments can still arrive.
+
+   The mapping of the fields of this document to SCHC terms is as
+   follows.
+
+    +==========+========+=============================================+
+    | Field    | SCHC   | Status                                      |
+    |          | term   |                                             |
+    +==========+========+=============================================+
+    | RuleID   | RuleID | Open Issue: mapping to SCHC architecture    |
+    |          |        | unconfirmed.  One byte, configured per peer |
+    |          |        | association, value 0 in the prototype.      |
+    +----------+--------+---------------------------------------------+
+    | Frame ID | DTag   | Open Issue: mapping unconfirmed; width of 8 |
+    |          | (role) | bytes is a prototype choice.                |
+    +----------+--------+---------------------------------------------+
+    | Fragment | FCN    | Open Issue: mapping unconfirmed.            |
+    | index    | (role) |                                             |
+    +----------+--------+---------------------------------------------+
+    | Fragment | none   | No RFC 8724 counterpart.                    |
+    | count    |        |                                             |
+    +----------+--------+---------------------------------------------+
+    | RCS      | RCS    | Open Issue: mapping unconfirmed.  CRC-32C   |
+    |          |        | on the final fragment, in line with the     |
+    |          |        | integrity check of Sections 8.2.3 and 8.4.1 |
+    |          |        | of [RFC8724].                               |
+    +----------+--------+---------------------------------------------+
+
+                  Table 3: Mapping of fields to SCHC terms
+
+
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 15]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   RuleID comes first in the header, as in other SCHC messages, so that
+   the format can later share a SCHC UDP port with other SCHC uses.  A
+   zero-bit RuleID is not used, because RFC 8724 leaves the RuleID size
+   to the Profile and a whole byte preserves alignment.
+
+   The prototype wire format has no wire compatibility with RFC 8724.  A
+   deployment with a genuine in-order guarantee could instead specify a
+   separate RFC 8724 No-ACK profile.  Header compression is outside the
+   scope of this document.
+
+A.5.  Fragment Format
+
+   This section defines the UDP payload of each fragment.  The wire
+   values are provisional prototype choices.  The format has no wire
+   compatibility with [RFC8724].
+
+   All multibyte integers use network byte order.  The UDP destination
+   port, configured locally, selects this format.  The RuleID comes
+   first, as in other SCHC messages, so that the format can later share
+   a SCHC UDP port with other SCHC uses and be selected by RuleID.
+
+A.5.1.  Header
+
+   Every fragment starts with a 14-byte header, followed by a nonempty
+   slice of the original frame.  The final fragment ends with a 4-byte
+   RCS.
+
+    0                   1                   2                   3
+    0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1 2 3 4 5 6 7 8 9 0 1
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |    RuleID     |                      VNI                      |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |                                                               |
+   +                           Frame ID                            +
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |     Index     |     Count     |   Slice (variable) ...
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+                               |
+   |                                                               |
+   ~                              ...                              ~
+   |                                                               |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+   |          RCS (final fragment only, 4 bytes)                   |
+   +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+
+                         Figure 1: Fragment format
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 16]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+      +==========+==========+=======================================+
+      | Byte     | Size     | Field                                 |
+      | offset   |          |                                       |
+      +==========+==========+=======================================+
+      | 0        | 1        | RuleID, configured per peer           |
+      |          |          | association; value 0 in the prototype |
+      +----------+----------+---------------------------------------+
+      | 1        | 3        | VNI, with the same meaning as in the  |
+      |          |          | associated VXLAN deployment           |
+      +----------+----------+---------------------------------------+
+      | 4        | 8        | Frame ID, unique across active and    |
+      |          |          | recently retired frames within the    |
+      |          |          | configured peer association and VNI   |
+      +----------+----------+---------------------------------------+
+      | 12       | 1        | Fragment index, zero-based            |
+      +----------+----------+---------------------------------------+
+      | 13       | 1        | Fragment count, 2 through the         |
+      |          |          | configured maximum                    |
+      +----------+----------+---------------------------------------+
+      | 14       | variable | Nonempty slice of the original frame  |
+      +----------+----------+---------------------------------------+
+      | End of   | 4        | RCS, present only if index equals     |
+      | final    |          | count minus one                       |
+      | fragment |          |                                       |
+      +----------+----------+---------------------------------------+
+
+                          Table 4: Fragment fields
+
+   There is no original-length field.  The receiver relies on the
+   fragment count, the equal-length nonfinal slices, the configured
+   maximum frame length and the RCS.
+
+   The RuleID is one byte, so that the header stays byte-aligned; a
+   zero-bit RuleID is not used.  Section 6 of [RFC8724] leaves the
+   RuleID size to the Profile.  The RuleID is configured per peer
+   association and is 0 in the prototype.
+
+A.5.2.  Mode Fields and Binding Fields
+
+   The Out-of-Order No-ACK mode proper consists of the RuleID, the Frame
+   ID, the fragment index, the fragment count, the slice and the RCS,
+   together with the receiver procedure and the discard deadline.  The
+   UDP/Ethernet binding for VXLAN consists of the VNI, the UDP
+   destination port and UDP checksum, the use of an Ethernet frame
+   without FCS as the fragmented unit, and the PMTU-derived slice budget
+   of the sender procedure.  The binding is kept explicit so that the
+   mode can later be separated from it.
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 17]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   Open Issue: whether the mode and the binding remain in one document
+   is not settled.
+
+A.5.3.  Reassembly Check Sequence
+
+   The final fragment, and only the final fragment, carries a 4-byte RCS
+   after its slice.  It is the CRC-32C of the original frame bytes in
+   wire order, serialized big-endian.  The RCS guards against splicing
+   slices of different frames, for example after a restart.  It covers
+   the frame bytes only and checks reassembly integrity; it does not
+   protect the header.
+
+   CRC-32C is defined as follows:
+
+   *  Polynomial: the Castagnoli polynomial, 0x1edc6f41 (0x82f63b78 in
+      reflected form).
+
+   *  Input and output are reflected.
+
+   *  The initial register value is 0xffffffff.
+
+   *  The final XOR value is 0xffffffff.
+
+   *  The check value for the ASCII string 123456789 is 0xe3069283.
+
+   *  The result is serialized as four bytes, most significant byte
+      first.
+
+A.5.4.  UDP Checksum
+
+   A sender MUST generate the UDP checksum on every extension datagram,
+   over IPv4 as well as IPv6.  A receiver MUST drop an extension
+   datagram whose UDP checksum is zero or incorrect.  This differs from
+   Section 5 of [RFC7348], which recommends a zero UDP checksum for
+   VXLAN.  Here the UDP checksum is the only protection of the fragment
+   header.
+
+A.5.5.  UDP Port Selection
+
+   The UDP destination port is selected by configuration and identifies
+   this format, distinct from the port used for ordinary VXLAN.  Each
+   sender is configured with the destination port on which its peer
+   receives this format.
+
+   Open Issue: header versioning and UDP demultiplexing are not settled.
+   The header has no version field.  The port is locally configured in
+   this version.  The SCHC UDP port of [I-D.ietf-schc-protocol-numbers]
+   is the candidate once assigned; that draft has no assigned value yet
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 18]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   and does not define the UDP payload layout, so sharing the port is
+   open, as is the allocation of RuleID values on a shared port.  Any
+   eventual IANA request is also open.
+
+A.5.6.  Provisional Status
+
+   The field sizes, offsets and the RuleID value in this section are
+   provisional prototype choices and may change before any interoperable
+   specification.  A reference model implements exactly this layout (see
+   Implementation Status).
+
+A.6.  Sender Procedure
+
+   The PMTU used here is the underlay IP path MTU, excluding outer
+   Ethernet overhead.  H_IP is the length of the actual outer IP header,
+   including any options or extension headers, and any further
+   encapsulation that consumes the same PMTU budget.
+
+   PMTU is a sender configuration value per peer and per direction.
+   This document defines no default PMTU; the value 1500 appears only in
+   examples.  The receiver does not need the sender's PMTU and MUST NOT
+   assume a slice length.
+
+   The ordinary VXLAN frame budget is:
+
+   PMTU - H_IP - 8 (UDP) - 8 (VXLAN)
+
+   The slice budget C is the same for every fragment of a frame:
+
+   C = PMTU - H_IP - 8 (UDP) - 14 (fragment header) - 4 (RCS allowance)
+
+   Nonfinal datagrams therefore leave four bytes unused, which removes a
+   sizing special case for the final fragment.
+
+   For each Ethernet frame (as presented to the tunnel, without FCS) the
+   sender proceeds as follows.
+
+   1.  If the frame fits the ordinary VXLAN frame budget, it emits RFC
+       7348 VXLAN.
+
+   2.  Otherwise, if the peer is not configured for this extension, it
+       drops the frame and increments a local counter.
+
+   3.  It validates C > 0, computes N = ceil(frame_length / C), and
+       drops the frame if the length is outside the configured frame-
+       length range or N is outside the configured fragment-count range
+       (2 through the configured maximum).
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 19]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   4.  It takes a snapshot of the budget once per frame, so a PMTU
+       change affects only later frames.
+
+   5.  It sends the slices in ascending index order.  Every slice has C
+       bytes except the final one, which carries the remainder followed
+       by the 4-byte RCS.  Every outer IP datagram fits the PMTU.
+
+   A configuration MUST be rejected if the minimum configured PMTU
+   cannot carry the maximum frame length in the maximum number of
+   fragments.
+
+   All fragments of a frame use the same outer five-tuple, in particular
+   the same source UDP port.  The sender derives that port from the
+   inner frame as it does for ordinary VXLAN ([RFC7348], Section 5), to
+   preserve flow-hash affinity.  The receiver identifies the peer
+   independently of the source UDP port, and the protocol tolerates
+   reordering even when path affinity fails.
+
+   For IPv4 the sender sets DF.  For IPv6 the sender does not use source
+   fragmentation.
+
+   Worked numbers with PMTU 1500, no outer IP options or extension
+   headers: standard VXLAN carries complete Ethernet frames of up to
+   1464 bytes over IPv4 (H_IP = 20) and 1444 bytes over IPv6 (H_IP =
+   40).  The slice budgets are 1454 and 1434 bytes.  Over IPv4, a
+   1514-byte frame produces slices of 1454 and 60 bytes; the outer IP
+   lengths are 1496 and 106 bytes (the final datagram carries 60 + 14 +
+   4 + 8 + 20).
+
+   The first version uses a conservative static PMTU per peer and path.
+   Open Issue: dynamic discovery is not specified.  If it is specified
+   later, it has to describe how the extension probes its own path,
+   including ECMP and path changes; see RFC 8899 [RFC8899].
+
+A.7.  Receiver Procedure
+
+   The wire format carries no original-length field.  The receiver
+   relies on the fragment count, on equal-length nonfinal slices, on the
+   configured maximum frame length and on the RCS.  It does not assume a
+   slice length.
+
+   An entry is keyed by the configured peer association (including the
+   local tunnel endpoint), VNI, RuleID and Frame ID.  Because the RuleID
+   of an association is configured and a mismatch is dropped, it does
+   not distinguish entries within an association.  A single worker or
+   equivalent synchronization owns each entry.  The receiver uses a
+   local monotonic clock for admission, expiry and delivery decisions.
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 20]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   1.  *Validation before allocation.* Before allocating state the
+       receiver MUST check that: the peer and VNI are authorized; the
+       UDP checksum is nonzero and correct; the RuleID equals the value
+       configured for the peer association (a mismatch is counted as a
+       peer admission failure); the count is at least 2 and at most the
+       configured maximum; the index is less than the count; the slice
+       length does not exceed the receiver's configured maximum slice
+       length; and a nonempty slice remains after the header and any
+       required trailer, so that a final fragment carries at least one
+       slice byte and the 4-byte RCS.  The maximum slice length is a
+       local bound, at most the configured maximum frame length.  A
+       datagram that fails the checksum or bounds checks is dropped and
+       counted as malformed.  Caps on incomplete entries and retained
+       bytes apply per peer and globally.  If admitting a fragment would
+       exceed a cap, the fragment is dropped and counted as table
+       exhaustion; an existing entry stays pending until its deadline.
+
+   2.  *Admission and expiry.* A fragment for a retired ID, whether the
+       frame completed, aborted or expired, is dropped and counted as
+       late.  The first admissible fragment, of any index, opens an
+       entry with expiry = first_rx + Δ; the deadline is never extended.
+       Expiry is decided by the arrival timestamp t alone, taken at a
+       consistent receive stage.  Expired entries are ineligible for
+       completion even if no timer sweep has run: a fragment that finds
+       an expired entry retires it as expired (counted once) and is
+       itself counted as late.  Timer processing can be batched.
+
+   3.  *Consistency and duplicates.* The count MUST match across the
+       entry, every nonfinal slice MUST have the same length, and the
+       final slice MUST be no longer than a nonfinal slice.  The
+       receiver stores one slice per index and updates a bitmap and a
+       running byte count.  An identical duplicate, meaning a fragment
+       with the same index and the same slice and, for the final
+       fragment, the same RCS, is ignored and does not extend expiry.  A
+       fragment with the same index but a different slice or, for the
+       final fragment, a different RCS is a conflicting duplicate.  A
+       conflicting duplicate, inconsistent metadata, or a byte count
+       above the maximum frame length aborts and retires the entry.
+
+   4.  *Completion.* When the bitmap is complete, the sum of the slice
+       lengths MUST lie within the configured frame-length range.  The
+       receiver assembles the slices in index order, verifies the RCS
+       and delivers the frame once.  The frame is eligible if the
+       arrival timestamp of the completing fragment is before expiry;
+       assembly and verification time after that arrival is budgeted in
+       Δ. A full bitmap with an invalid length or RCS aborts the entry.
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 21]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   5.  *Retirement.* On completion, abort or timeout the receiver
+       retires the ID and releases the buffers.  A final fragment with
+       holes stays pending until the holes fill or the deadline passes.
+
+   Open Issue: the deadline equality rule.  The reference receiver
+   treats t >= expiry as expired, so a fragment arriving exactly at the
+   deadline is late.  This is a recommendation pending working group
+   input.
+
+   Because an entry may start from any index, a fragment of a retired
+   frame can arrive after retirement and would otherwise open a new
+   entry.  A bounded retirement record suppresses such late fragments
+   and duplicate delivery.  A record MUST NOT be evicted while the
+   deployment still allows fragments for that ID to arrive.  For the
+   first version, L is configured as an upper bound on the arrival
+   spread of all copies of the fragments of a frame, including
+   duplicates, and a record is kept for L after retirement.  Capacity
+   for active and retired IDs is either provisioned for the admitted
+   rate, or a retirement slot is reserved at admission, as the reference
+   receiver does; new IDs are then not admitted within an exhausted
+   scope until space returns.  Drops before admission create no
+   deliverable state.  Without a defensible bound on L, suppression
+   through finite retention is best effort.
+
+   Starting from any index supports reordering because every fragment
+   carries its own index and the count, so the first fragment to arrive,
+   including the final one, is enough to open an entry and size its
+   bitmap, and missing indices simply stay pending.
+
+   The receiver maintains counters for: completed frames, expiration,
+   late fragments, duplicates, integrity failure (inconsistent metadata,
+   conflicting duplicates, bad length or RCS), malformed input, peer
+   admission failure, and table exhaustion.  Expiration and lateness are
+   reported separately: expiration records incompleteness observed at
+   the cutoff, while a late fragment, meaning any fragment of a retired
+   Frame ID, is positive evidence of lateness.  A duplicate is an
+   identical fragment received while its entry is still active; an
+   identical fragment arriving after retirement is late, not a
+   duplicate.
+
+A.8.  Discard Deadline
+
+   A receiver can observe incompleteness only at the cutoff.  At that
+   moment it cannot tell whether a missing fragment was lost or will
+   arrive later.  A fragment received after expiry is positive evidence
+   of lateness.  An implementation SHOULD report the two events
+   separately: an expired entry with missing fragments (incompleteness,
+   loss or lateness not distinguished) and a fragment arriving after
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 22]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   expiry or retirement (late).
+
+   The deadline is expiry = first_rx + Δ, fixed at the first admissible
+   fragment and never extended.  The prototype rule, subject to the Open
+   Issue below, is that an entry is expired for any fragment whose
+   arrival timestamp t satisfies t >= expiry.
+
+A.8.1.  Choosing Δ
+
+   For a deterministic path, Δ is budgeted from three terms:
+
+   *  the maximum sender emission span for the fragments of one frame;
+
+   *  the maximum differential path delay between fragments of the same
+      frame; and
+
+   *  the maximum receiver scheduling, processing and clock-resolution
+      margin, which includes assembly and RCS verification after the
+      completing fragment arrives.
+
+   An absolute maximum one-way latency can inform the differential
+   bound, but it is the spread between pieces of the same frame that
+   drives this timer.
+
+   For a best-effort path, the operator measures the spread under
+   realistic contention and chooses the cutoff against the service's
+   latency and discard budgets.  The observation stage at which arrival
+   timestamps are taken is defined when benchmarking, and MUST be
+   applied consistently within a receiver.
+
+A.8.2.  Scope of the Deadline
+
+   The first-arrival deadline bounds only the time the receiver holds a
+   frame for reassembly.  It is not an end-to-end frame age bound.  An
+   end-to-end bound requires a separate age mechanism, such as sender
+   timestamps with bounded clock error, which is outside the base format
+   of this document.
+
+A.9.  Frame Identification and Restart
+
+   The Frame ID is a 64-bit counter.  The sender uses one monotonic
+   counter per sending association and VNI, and every frame fragmented
+   in that scope takes the next value.  A Frame ID MUST be unique across
+   active and recently retired frames within the configured peer
+   association and VNI.  The counter starts at any value chosen by the
+   sender.  At 64 bits, wrapping is not expected within the lifetime of
+   a deployment, and behaviour at wrap is not specified.  The 8-byte
+   width is a prototype choice kept for alignment; the width itself is
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 23]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   an Open Issue.
+
+A.9.1.  Sender Restart
+
+   A sender restart must not result in the reuse of a Frame ID that a
+   receiver may still hold as active or retired.  This is a requirement
+   on the deployment; the mechanism is an Open Issue.  Two approaches
+   are candidates, and neither is specified in this version:
+
+   *  it persists counter allocation, so that after a restart the
+      counter resumes above every value previously used; or
+
+   *  it establishes a new association generation that the receiver can
+      distinguish, and the receiver rejects the old generation.
+
+A.9.2.  Receiver Restart
+
+   A receiver that loses its retirement records can accept late or
+   duplicate fragments of frames it already delivered or retired.  If
+   duplicate suppression must survive a receiver restart, the receiver
+   needs either a fresh association or a drain interval before it
+   reopens the old association.  The drain interval covers the residual
+   packet lifetime of the deployment.
+
+   The CRC-32C RCS provides a partial safeguard: it guards against
+   splicing slices of different frames, for example after a restart.  It
+   does not replace Frame ID uniqueness.
+
+A.9.3.  Status
+
+   The prototype puts no epoch or generation value on the wire.
+   Restart-safe interoperability is not claimed.
+
+   Open Issue: the restart and generation mechanism is not specified.
+   It covers how a new association generation is signalled and
+   distinguished, how the old generation is rejected, how counter
+   persistence is performed and the length of the receiver drain
+   interval.  Until it is specified, this document makes no claim of
+   restart-safe interoperability.
+
+A.9.4.  Retirement Bound L
+
+   Frame ID uniqueness depends on the retirement bound L.  The
+   retirement record of a frame is kept for L after retirement.  In the
+   first prototype, L is configured as an upper bound on the arrival
+   spread of all copies of the fragments of a frame, including
+   duplicates.  A receiver MUST NOT evict a retirement record while the
+   deployment still allows fragments for that Frame ID to arrive.
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 24]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   Without a defensible bound, suppression through finite retention is
+   best effort.
+
+A.10.  Default Operational Profile
+
+   This section describes the prototype operating point.  It is not a
+   claim of general suitability.
+
+A.10.1.  Fragment Count
+
+   The profile starts with a configured maximum of two fragments.  This
+   is valid where the minimum configured PMTU carries the maximum
+   allowed frame in two slices, for example an Ethernet-1500 service
+   over a 1500-byte PMTU.  The receiver can then keep a two-bit receive
+   mask and bounded per-worker state.
+
+A.10.2.  Minimum-PMTU Validation
+
+   A configuration MUST be rejected if the minimum configured PMTU
+   cannot carry the maximum frame length in the maximum number of
+   fragments.  Validation uses the slice budget C for each configured
+   peer and direction, with the actual H_IP.
+
+A.10.3.  Configured Bounds
+
+   An implementation provides the following configured values:
+
+   *  the maximum frame length, and the frame-length range accepted;
+
+   *  the maximum fragment count (2 in the profile above), and the
+      minimum count of 2;
+
+   *  the receiver's maximum slice length, a local bound that does not
+      exceed the maximum frame length;
+
+   *  caps on incomplete entries and retained bytes per peer and
+      globally; and
+
+   *  capacity for retirement records at the admitted rate, or a
+      reservation of a retirement slot at admission with admission
+      stopped within an exhausted scope until space returns.
+
+
+
+
+
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 25]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+A.10.4.  Meaning and Configuration of Δ and L
+
+   Δ is the receiver-held reassembly time measured from the first
+   admissible fragment, chosen as described above.  L is the retention
+   time of a retirement record, measured from retirement, bounding the
+   arrival spread of all copies of a frame.  Both are local receiver
+   configuration.  Neither value is carried on the wire.
+
+   Open Issue: this document gives no numeric default for Δ or L, for
+   the maximum frame length, or for the entry and byte caps.  The values
+   depend on the path and on measurement.  They are not set here.
+
+   Open Issue: the deadline equality rule is that the prototype treats t
+   >= expiry as expired, so a fragment arriving exactly at the deadline
+   is late.  Whether this is the final rule is to be confirmed.
+
+A.11.  Manageability Considerations
+
+   This extension is configured, not negotiated.  An implementation MUST
+   provide configuration for the following items, and an operator is
+   responsible for keeping both ends of each peer association
+   consistent:
+
+   *  the set of peer associations, each identifying the local tunnel
+      endpoint, the peer address and the RuleID (0 in the prototype);
+
+   *  the VNIs admitted on each peer association;
+
+   *  the UDP destination port of the fragment format, which is locally
+      configured in this version and distinct from the ordinary VXLAN
+      port;
+
+   *  the configured PMTU per peer association, from which the slice
+      budget C is derived;
+
+   *  the receiver limits: the discard deadline Δ, the arrival-spread
+      bound L used for retirement records, the maximum number of
+      fragments per frame (initially two), the maximum slice length, and
+      the capacity of active and retired entries per scope.
+
+   Peer capability for the extension has to be provisioned before a
+   sender emits oversized frames.  How a peer's capability is learned is
+   an Open Issue; this version relies on static provisioning.
+
+   An implementation SHOULD expose counters, kept per peer association
+   and VNI where practical, for: frames fragmented; oversized frames
+   dropped because the extension is unavailable or the limits cannot
+   carry them; frames completed; entries expired with missing fragments;
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 26]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   fragments received after expiry or retirement (late); duplicate
+   fragments; integrity (RCS) failures; malformed input, including zero
+   UDP checksums; peer or VNI admission failures; and table exhaustion.
+   Expiry with missing fragments and late arrival are reported
+   separately, as described in the discard deadline section.
+
+A.12.  Security Considerations
+
+   This document defines no cryptographic protection.  The first version
+   targets statically provisioned unicast VTEP pairs in a managed
+   fabric, and the considerations below assume that deployment.
+
+A.12.1.  Peer and VNI Admission
+
+   A receiver MUST identify a configured peer association from the outer
+   source address and the local tunnel endpoint, independently of the
+   source UDP port, and MUST drop fragments from sources that match no
+   association.  A receiver MUST also drop fragments whose VNI is not
+   admitted for that association.  Drops at this stage occur before
+   admission and create no reassembly state.
+
+A.12.2.  Spoofing
+
+   Nothing in the fragment header authenticates the sender.  A party
+   able to inject packets with a forged outer source address can send
+   fragments that appear to come from a configured peer, and can thereby
+   inject frames into an admitted VNI or consume reassembly state.  The
+   CRC-32C RCS and the UDP checksum detect accidental corruption only.
+   They are not keyed and provide no peer authentication or integrity
+   against an attacker.  A zero UDP checksum is dropped, which removes
+   no spoofing exposure.  Where spoofing is a concern, the deployment
+   SHOULD use an authenticated underlay, such as an IPsec association or
+   a fabric with source-address validation at its edges, or equivalent
+   filtering that restricts the sources able to reach the configured
+   port.
+
+   Because Frame IDs are a sequential counter, an attacker that can
+   inject packets can open the next expected Frame ID with a wrong
+   count, or send fragments that conflict with those of a genuine frame,
+   so that the genuine frame is aborted.  An unpredictable initial value
+   only raises the cost of guessing, because the increments stay
+   observable on the wire.  The mitigation is the authenticated underlay
+   described above.
+
+
+
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 27]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+A.12.3.  State Exhaustion
+
+   Reassembly state is the main resource an attacker can consume.  The
+   receiver bounds it by construction: entries are keyed by peer
+   association, VNI, RuleID and Frame ID, the number of fragments per
+   frame and the slice length are bounded, and every entry expires at
+   first_rx + Δ, never extended.  Because retirement records are kept
+   for L, an attacker that opens many Frame IDs also occupies retirement
+   capacity.  A receiver SHOULD apply the capacity limits per scope so
+   that one peer or VNI cannot exhaust the state of others, and when a
+   scope is exhausted it MUST stop admitting new Frame IDs in that scope
+   rather than evict state needed for duplicate suppression.  Exhaustion
+   is counted.  Admission checks run before any state is created.
+
+A.12.4.  Replay
+
+   Duplicate suppression through active and retired entries stops a
+   captured frame from being delivered twice within the retention window
+   L.  It is not replay protection.  A replayed fragment set whose Frame
+   ID has left the retention window, or that arrives after a receiver
+   restart without a fresh association generation or drain interval, can
+   be accepted and delivered again.  Restart-safe suppression is an Open
+   Issue, tied to the Frame ID restart mechanism.  Protection against an
+   active replaying attacker requires an authenticated underlay with
+   anti-replay.
+
+A.12.5.  Other Considerations
+
+   A receiver never delivers a frame whose completing fragment arrived
+   at or after expiry, so an attacker cannot extend the holding time by
+   sending late fragments.  An attacker that can delay or drop fragments
+   can cause frames to be discarded at the deadline; this is loss, not
+   corruption.  Mixing fragments of different frames under a forged
+   Frame ID is limited to the scope of one peer association and VNI, and
+   a wrongly assembled frame fails the RCS check except with the
+   probability of a CRC-32C collision, which an attacker can engineer
+   deliberately.
+
+A.13.  IANA Considerations
+
+   This document makes no request of IANA in this version.  The UDP
+   destination port of the fragment format is locally configured by the
+   operator on both peers.
+
+   The SCHC UDP port of [I-D.ietf-schc-protocol-numbers] is the
+   candidate port for a later version.  That draft has no assigned value
+   yet and does not define the UDP payload layout used here, so it is
+   cited informatively only.  The following remain Open Issues:
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 28]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   *  whether this format shares the SCHC UDP port, and how RuleID
+      values are allocated on a shared port;
+
+   *  the eventual UDP port assignment, if any, and the need for a
+      header version indication; and
+
+   *  whether any request to a SCHC registry is needed.
+
+A.14.  Examples
+
+   Both examples use the following parameters, produced by the reference
+   model described in Implementation Status.
+
+   *  RuleID 0 (prototype value); VNI 12345 (0x003039); Frame ID 1
+      (0x0000000000000001); peer vtep-2.
+
+   *  PMTU 1500 bytes, IPv4, H_IP = 20 bytes (no outer IP options).
+
+   *  Illustrative Ethernet frame of 1514 bytes, with byte[i] = i mod
+      256.
+
+   *  Deadline Δ = 5.0 ms; retirement record lifetime L = 50.0 ms.
+
+   The sender produces two fragments.  CRC-32C over the 1514-byte frame
+   is 0x487a7b87.
+
+   +=====+=====+======+========+============================+==========+
+   |Index|Count|Slice | Outer  | Header fields (hex)        | RCS      |
+   |     |     |length| IP     |                            | (hex)    |
+   |     |     |      | length |                            |          |
+   +=====+=====+======+========+============================+==========+
+   |0    |2    |1454  | 1496   | RuleID=0x00 VNI=0x003039   | —        |
+   |     |     |      |        | FrameID=0x0000000000000001 |          |
+   |     |     |      |        | Index=0x00 Count=0x02      |          |
+   +-----+-----+------+--------+----------------------------+----------+
+   |1    |2    |60    | 106    | RuleID=0x00 VNI=0x003039   | 487a7b87 |
+   |     |     |      |        | FrameID=0x0000000000000001 |          |
+   |     |     |      |        | Index=0x01 Count=0x02      |          |
+   +-----+-----+------+--------+----------------------------+----------+
+
+                                  Table 5
+
+A.14.1.  Example A: Last-Fragment-First Completion
+
+   The last fragment (index 1, carrying the RCS) arrives before the
+   nonfinal fragment (index 0).  The receiver opens the entry on the
+   last fragment's arrival and delivers once the bitmap is complete and
+   the RCS verifies.
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 29]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   +===+===========+============================+===========+==========+
+   |t  | Event     | Header fields (hex)        | Result    | Bitmap   |
+   |   |           |                            |           | after    |
+   |   |           |                            |           | datagram |
+   +===+===========+============================+===========+==========+
+   |0.0| final     | RuleID=0x00 VNI=0x003039   | PENDING   | 01       |
+   |ms | fragment  | FrameID=0x0000000000000001 |           |          |
+   |   | (index    | Index=0x01 Count=0x02      |           |          |
+   |   | 1)        |                            |           |          |
+   |   | arrives   |                            |           |          |
+   |   | first     |                            |           |          |
+   +---+-----------+----------------------------+-----------+----------+
+   |1.0| nonfinal  | RuleID=0x00 VNI=0x003039   | DELIVERED | 11       |
+   |ms | fragment  | FrameID=0x0000000000000001 |           |          |
+   |   | (index    | Index=0x00 Count=0x02      |           |          |
+   |   | 0)        |                            |           |          |
+   |   | arrives   |                            |           |          |
+   |   | second,   |                            |           |          |
+   |   | before    |                            |           |          |
+   |   | expiry    |                            |           |          |
+   |   | at 5.0    |                            |           |          |
+   |   | ms        |                            |           |          |
+   +---+-----------+----------------------------+-----------+----------+
+
+                                  Table 6
+
+   Delivered frame length: 1514 bytes; CRC-32C: 0x487a7b87.  Counters
+   after Example A: completed=1, expired=0, late=0, duplicate=0,
+   integrity_failure=0, malformed=0, peer_admission_failure=0,
+   table_exhaustion=0.
+
+A.14.2.  Example B: Deadline Expiry
+
+   Only the last fragment (index 1) arrives.  The entry opens with
+   expiry = first_rx + Δ = 0.0 + 5.0 = 5.0 ms.  No sweep runs.  The
+   missing nonfinal fragment (index 0) then arrives after expiry: the
+   entry is ineligible for completion even though no sweep has retired
+   it yet, so it is retired as expired on this arrival and the arriving
+   fragment is itself counted as late.
+
+
+
+
+
+
+
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 30]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+   +=====+===========+============================+=========+==========+
+   | t   | Event     | Header fields (hex)        | Result  | Bitmap   |
+   |     |           |                            |         | after    |
+   |     |           |                            |         | datagram |
+   +=====+===========+============================+=========+==========+
+   | 0.0 | final     | RuleID=0x00 VNI=0x003039   | PENDING | 01       |
+   | ms  | fragment  | FrameID=0x0000000000000001 |         |          |
+   |     | (index    | Index=0x01 Count=0x02      |         |          |
+   |     | 1)        |                            |         |          |
+   |     | arrives   |                            |         |          |
+   |     | alone;    |                            |         |          |
+   |     | entry     |                            |         |          |
+   |     | opens,    |                            |         |          |
+   |     | expiry =  |                            |         |          |
+   |     | 0.0 + Δ   |                            |         |          |
+   |     | = 5.0 ms  |                            |         |          |
+   +-----+-----------+----------------------------+---------+----------+
+   | 7.0 | missing   | RuleID=0x00 VNI=0x003039   | LATE    | 01       |
+   | ms  | nonfinal  | FrameID=0x0000000000000001 |         |          |
+   |     | fragment  | Index=0x00 Count=0x02      |         |          |
+   |     | (index    |                            |         |          |
+   |     | 0)        |                            |         |          |
+   |     | arrives   |                            |         |          |
+   |     | after     |                            |         |          |
+   |     | expiry;   |                            |         |          |
+   |     | the       |                            |         |          |
+   |     | entry is  |                            |         |          |
+   |     | retired   |                            |         |          |
+   |     | as        |                            |         |          |
+   |     | expired   |                            |         |          |
+   |     | and the   |                            |         |          |
+   |     | fragment  |                            |         |          |
+   |     | is        |                            |         |          |
+   |     | counted   |                            |         |          |
+   |     | as late   |                            |         |          |
+   +-----+-----------+----------------------------+---------+----------+
+
+                                  Table 7
+
+   Counters after Example B: completed=0, expired=1, late=1,
+   duplicate=0, integrity_failure=0, malformed=0,
+   peer_admission_failure=0, table_exhaustion=0.
+
+
+
+
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 31]
+
+Internet-Draft          SCHC VXLAN Fragmentation           November 2026
+
+
+A.15.  Test and Benchmark Considerations
+
+   An implementation can start with a maximum of two fragments and a
+   two-bit receive mask, and should benchmark the integrity check and
+   the fragmented forwarding path together.  Throughput results are
+   pending measurement; this document makes no throughput claim.
+   Acceptance checks include:
+
+   *  Exact-fit and one-byte-over frame sizes for IPv4 and IPv6,
+      including tagged Ethernet, verifying that every emitted IP packet
+      fits the PMTU.
+
+   *  Both arrival orders, every single-fragment loss, identical and
+      conflicting duplicates, malformed or inconsistent headers, bad
+      RCS, deadline equality, late arrival after retirement, and Frame
+      ID uniqueness across restart.
+
+   *  Normal VXLAN forwarding, unsupported peers, ingress replication,
+      table exhaustion, and a change of configured PMTU.
+
+   *  Benchmarks of a normal/fragmented mix, of frames just over the
+      VXLAN threshold, and of the maximum frame size, reporting frame
+      and packet rates, wire bit rate, latency percentiles and drops by
+      cause, and stating whether offered load is ingress frame rate or
+      egress wire capacity.
+
+   *  Counters for completed frames, expiration, late fragments,
+      duplicates, integrity failure, malformed input, peer admission
+      failure, and table exhaustion.
+
+Authors' Addresses
+
+   Andrii Vladyka
+   Email: andrii.vladyka@gmail.com
+
+
+   Alexander Pelov
+   IMT Atlantique
+   Email: alexander.pelov@imt-atlantique.fr
+
+
+
+
+
+
+
+
+
+
+
+
+Vladyka & Pelov            Expires 18 May 2027                 [Page 32]

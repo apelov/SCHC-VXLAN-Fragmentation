@@ -23,3 +23,11 @@ Relay the reviewer's findings, then apply any agreed fixes to the draft sections
 - Corrected standards claims, restart/drain/retirement timing, early VNI admission and capacity arithmetic. Preserved inherited CRC-32C decision.
 - Exhaustively checked encoding/reconstruction across all permutations for K=2..8 and checked PMTU examples. Independent semantic review remains outstanding.
 - Existing untracked WIRE-OPTIONS.md was preserved and excluded from checkpoint.
+
+- User clarified configurable DTag: proposed compact 4-bit RuleID, 32-bit DTag, 4-bit FCN; 60-bit DTag is an extended variant. Updated size examples.
+- Extended variant clarified: 8-bit RuleID, 60-bit DTag, 4-bit FCN; variant must be known before parsing.
+
+## Revised draft variant
+- Added standalone draft/revised/draft-vladyka-schc-vxlan-fragmentation-00-revised.md and build script; original technical sections preserved in appendix. Original draft and reference model remain unchanged.
+- Main profile describes RFC 8724 ordered receiver; reordering-tolerant receiver is explicitly an extension with standards status open. Direct NoCompress mapping and RFC 7348 interpretation remain open.
+- Built XML, text and HTML using kramdown-rfc and xml2rfc. idnits unavailable; semantic review is not independent, and old model applies to appendix only.

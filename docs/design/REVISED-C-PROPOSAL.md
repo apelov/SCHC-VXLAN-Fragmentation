@@ -18,7 +18,7 @@ Carry the complete VXLAN UDP payload through SCHC fragmentation, with NoCompress
 | VNI claimed unavailable until complete reassembly | With NoCompress, inspect it when the first fragment arrives; earlier orphan state remains unattributed. |
 | Restart shorter than timeout considered safe | Drain delayed traffic and receiver state before identifier reuse. |
 | Deadline alone treated as sufficient quarantine | Include maximum residual transport lifetime and retirement retention. |
-| Four-bit FCN inserted into a byte-aligned layout implicitly | Pack it with a 60-bit DTag; do not insert unspecified padding. |
+| Four-bit FCN inserted into a byte-aligned layout implicitly | Use explicit variant-specific RuleID and DTag widths with a four-bit FCN; do not insert unspecified padding. |
 | Compression treated as a free wire-size saving | Account for compression RuleID and provisioned context; leave compression disabled. |
 
 ## Scope and preserved requirements
@@ -55,29 +55,29 @@ An explicit local UDP port selects this binding. No IANA assignment is assumed.
 
 | Field | Size | Notes |
 | --- | --- | --- |
-| Fragmentation RuleID | 8 bits | Configured; identifies the full profile |
-| DTag | 60 bits | Monotonic allocation per sending association and RuleID |
-| FCN | 4 bits | Adjacent to DTag; low nibble of their eight-byte network-order word |
+| Fragmentation RuleID | 4 bits compact; 8 bits extended | First field; identifies the profile |
+| DTag | 32 bits by default; 60 bits for the extended variant | Monotonic allocation per sending association and RuleID |
+| FCN | 4 bits | Immediately follows DTag |
 | RCS | 32 bits, All-1 only | Before final payload |
 | Payload | Whole bytes | Nonempty |
 
-The regular header is 9 bytes; the All-1 header is 13 bytes. No W field or padding is needed with eight-bit words and byte-sized payloads. Do not send Sender-Abort in this base proposal. A receiver must distinguish its RFC format from a valid All-1 and must never interpret an empty All-1 as a complete data fragment.
+The compact variant packs RuleID, 32-bit DTag, and FCN consecutively into 5 bytes; the regular header is 5 bytes and the All-1 header is 9 bytes. The extended variant packs an 8-bit RuleID, 60-bit DTag, and 4-bit FCN consecutively into 9 bytes; its regular and All-1 headers are 9 and 13 bytes respectively. The association or UDP binding must identify the variant before parsing its RuleID. DTag width is configured per association and RuleID and must be known before parsing; it does not change while packets or retirement records are live. Other widths require `RuleID width + DTag width + 4` to be byte-aligned under this binding. No W field or padding is needed with eight-bit words and byte-sized payloads. Do not send Sender-Abort in this base proposal. A receiver must distinguish its RFC format from a valid All-1 and must never interpret an empty All-1 as a complete data fragment.
 
 CRC-32C covers the complete fragmented unit in byte order. Preserve reflected Castagnoli parameters, initial register and final XOR 0xffffffff, check value 0xe3069283 for `123456789`, and network-order RCS serialization. CRC-32C is an intentional inherited choice; it is not the Ethernet CRC recommended by RFC 8724. Changing algorithms requires a distinct configured profile.
 
 ## Sender and capacity
 
-Let P be the configured IP PMTU, H the complete outer IP header cost, and C=P-H-8-13. Account separately for any additional encapsulation consuming this budget. Require C>=8 so the complete uncompressed VXLAN header fits in the first fragment.
+Let P be the configured IP PMTU, H the complete outer IP header cost, and C=P-H-8-9 for the compact variant (use 13 instead of 9 for the extended variant). Account separately for any additional encapsulation consuming this budget. Require C>=8 so the complete uncompressed VXLAN header fits in the first fragment.
 
 For Ethernet length E, ordinary VXLAN fits when E+8<=P-H-8. Otherwise fragment U=E+8 bytes into K=ceil(U/C) tiles, with all regular tiles C bytes and the last 1..C bytes. Require 2<=K<=8. Snapshot PMTU and profile for the packet. Never use IP fragmentation. Reject configurations whose maximum frame cannot fit within eight tiles at the minimum configured PMTU.
 
 | IP PMTU | IP header | C | K for E=9014 | Maximum E in eight tiles |
 | --- | --- | --- | --- | --- |
-| 1500 | IPv4, 20 | 1459 | 7 | 11664 |
-| 1500 | IPv6, 40 | 1439 | 7 | 11504 |
-| 1280 | IPv6, 40 | 1219 | 8 | 9744 |
+| 1500 | IPv4, 20 | 1463 | 7 | 11696 |
+| 1500 | IPv6, 40 | 1443 | 7 | 11536 |
+| 1280 | IPv6, 40 | 1223 | 8 | 9776 |
 
-These are calculated examples, with no extra encapsulation. E=9014 means a 9000-byte inner payload plus an untagged Ethernet header. Tags consume additional space. For E=1514 over IPv4/1500, U=1522, tiles are 1459 and 63, and outer IP lengths are 1496 and 104. Fragmentation headers total 22 bytes, in addition to the retained eight-byte VXLAN header.
+These are calculated examples, with no extra encapsulation. E=9014 means a 9000-byte inner payload plus an untagged Ethernet header. Tags consume additional space. For E=1514 over IPv4/1500, U=1522, tiles are 1463 and 59, and outer IP lengths are 1496 and 96. Fragmentation headers total 14 bytes, in addition to the retained eight-byte VXLAN header.
 
 ## Receiver behavior
 
@@ -105,7 +105,7 @@ Starting at zero is acceptable only under a defined reuse policy. Uptime alone p
 
 Define B as a configured upper bound from the **last emission of any copy** to its final possible arrival, including queues and replication. Define DeltaMax as the largest receiver entry lifetime accepted for this association. Keep retirement records for at least R>=B after retirement; since the proposal keys by packet identity, this suppresses delayed copies even after successful delivery. Provision slots for the maximum admitted rate and retention; never evict a protected record to admit another packet.
 
-A conservative same-association reuse interval, measured from the previous last emission, is Q>B+DeltaMax+R, including timing margin. By then old fragments, active entries, and retirement records have drained. Record the previous last emission or wait Q after startup if it is unknown. A fast restart is not safe without this wait. A 60-bit space reduces wrap frequency but does not solve a reset-to-zero collision.
+A conservative same-association reuse interval, measured from the previous last emission, is Q>B+DeltaMax+R, including timing margin. By then old fragments, active entries, and retirement records have drained. Record the previous last emission or wait Q after startup if it is unknown. A fast restart is not safe without this wait. A 60-bit extended space reduces wrap frequency compared with 32 bits but does not solve a reset-to-zero collision.
 
 For normal operation, allocate unique DTags across all transmit workers and VNIs sharing the association/RuleID. Do not wrap faster than Q permits; block or reconfigure before reuse. Use monotonic elapsed time, not wall clock. Persisting counter reservations or establishing a receiver-visible new association generation can avoid the startup delay, but neither is implicitly provided by this wire format.
 
@@ -125,7 +125,7 @@ The following source facts constrain the proposal: RFC 8724 permits profile-defi
 
 RFC 7348 forbids VTEP fragmentation of VXLAN packets. This design uses another UDP binding and reconstructs a VXLAN payload, rather than applying IP fragmentation. That distinction is an argument to review, not proof that no standards clarification is needed. See [RFC 7348 §4.3](https://www.rfc-editor.org/rfc/rfc7348.html#section-4.3).
 
-Before freezing: agree the tolerant extension's standards vehicle; approve 60-bit DTag/four-bit FCN and direct NoCompress binding; define port/RuleID provisioning; configure B, Delta, inactivity timeout and memory limits; confirm retirement affordability at the intended rate. Retain CRC-32C unless the human explicitly changes the inherited decision. No current protocol-number draft status is asserted here.
+Before freezing: agree the tolerant extension's standards vehicle; approve configurable DTag widths, the compact 4-bit RuleID/32-bit DTag default, the extended 8-bit RuleID/60-bit DTag variant, four-bit FCN, and direct NoCompress binding; define port/RuleID provisioning; configure B, Delta, inactivity timeout and memory limits; confirm retirement affordability at the intended rate. Retain CRC-32C unless the human explicitly changes the inherited decision. No current protocol-number draft status is asserted here.
 
 ## Validation and migration
 

@@ -9,7 +9,7 @@ Plan: inspect existing design and wire options; verify RFC constraints; write se
 - A1 [F] AXIOM HIGH: option C with default NoCompress; source: current conversation.
 - A2 [F] AXIOM HIGH: distinguish pure and tolerant receivers; source: user acceptance of two possibilities.
 - C1 [~] CHOICE HIGH: countdown excludes All-1, supporting eight fragments; origin: agent correction; impact: wire semantics; parent A2.
-- C2 [~] CHOICE HIGH: 60-bit DTag packed with four-bit FCN; origin: agent alignment proposal; impact: wire layout; parent A1.
+- C2 [~] CHOICE HIGH: configurable DTag, compact 4-bit RuleID/32-bit DTag default and 8-bit RuleID/60-bit DTag extended variant, packed with four-bit FCN; origin: user clarification and agent alignment proposal; impact: wire layout; parent A1.
 - C3 [~] CHOICE HIGH: direct payload binding without nested C/D RuleID; origin: agent proposal; impact: SCHC mapping; parent A1.
 - A3 [F] AXIOM HIGH: preserve CRC-32C pending explicit revision; source: frozen DESIGN.md.
 - Q1 [?] QUESTION HIGH: standards vehicle for tolerant behavior; origin: RFC comparison; parent A2.
