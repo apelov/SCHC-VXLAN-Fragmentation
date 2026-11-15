@@ -86,3 +86,18 @@ Packet storage uses a fixed maximum-sized slot per configured entry; max_bytes l
 ## WP07: reordering-tolerant receiver
 
 Association receivers share a caller-owned global pool, whose entry, byte and orphan limits and initial zero usage are supplied by the caller. The local orphan budget counts entries. The configured maximum tile length is enforced independently of the packet bound. Storage has one packet-sized slot per entry and one assembly buffer per receiver; actual retained payload bytes are charged to the limits. Conflicts and incompatible tile lengths count as integrity failures, while admission failures count as table exhaustion. A fragment rejected solely for byte capacity leaves an existing entry intact. The caller supplies monotonically nondecreasing receive timestamps and must process queued arrivals before sweeping past their timestamps, as in WP06. Inactivity starts on admission and resets on newly admitted regular fragments; duplicates do not reset it. Early VNI validation uses the shared packet validator with a padded Ethernet portion.
+
+## WP08: fuzzing
+
+The event stream selects a variant, advances monotonic time, optionally sweeps,
+ and supplies arbitrary datagrams or sender-built fragments. Generated packets
+use a small DTag space to exercise retirement; input controls fragment count,
+position, contents, and optional corruption. The CRC oracle compares delivered
+frames with observed first-fragment prefixes and All-1 RCS values for the same
+DTag. Unfragmented packets have no RCS. The standalone driver uses a fixed
+xorshift seed and 1,000 inputs per target for smoke tests.
+
+Run with sanitizers: `meson setup build-asan impl-c -Db_sanitize=address,undefined && meson test -C build-asan fuzz-smoke`.
+When libFuzzer is supported, run `build-asan/tests/fuzz_classify`,
+`build-asan/tests/fuzz_ordered`, or `build-asan/tests/fuzz_tolerant` directly
+with libFuzzer arguments and an optional corpus directory.
