@@ -12,7 +12,7 @@ struct schcvx_config_assoc {
  uint32_t vnis[SCHCVX_MAX_VNIS]; size_t vni_count;
  struct schcvx_tx_cfg tx; bool tolerant;
  uint64_t S, B, I, Delta, R, Q, dtag_start, counters_interval;
- size_t max_entries, max_bytes, orphan_budget;
+ size_t max_entries, max_retired, max_bytes, orphan_budget;
  uint32_t dtag_rate, dtag_burst;
 };
 struct schcvx_config { size_t max_entries, max_bytes, orphan_budget, count; struct schcvx_config_assoc assoc[SCHCVX_MAX_ASSOC]; };

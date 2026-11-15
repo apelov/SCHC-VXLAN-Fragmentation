@@ -1,6 +1,6 @@
 # Numeric durations are nanoseconds; rates are DTags per second.
 [global]
-max_entries = 32768
+max_entries = 4096
 max_bytes = 67108864
 orphan_budget = 4096
 [association lab]
@@ -24,7 +24,8 @@ I = 10000000
 Delta = 20000000
 R = 100000000
 Q = 200000000
-max_entries = 16384
+max_entries = 1024
+max_retired = 65536
 max_bytes = 33554432
 orphan_budget = 2048
 dtag_start = 0

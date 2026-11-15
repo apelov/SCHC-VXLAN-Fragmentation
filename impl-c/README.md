@@ -88,7 +88,8 @@ built-in defaults. Values are decimal numbers or the strings shown. **All durati
 | `Delta` | Fixed reassembly deadline Delta, nanoseconds. |
 | `R` | Retirement time R, nanoseconds. |
 | `Q` | Startup quarantine Q for DTag allocation, nanoseconds. |
-| `max_entries` | Receiver entries for this association (positive). It also bounds retired identifiers, so set it to at least (expected packet rate x R) plus the active entries. Example: about 63,000 full-size packets per second at 760 Mbit/s with R = 100 ms needs about 6,300; the shipped default is 16384. When it is too small the receiver refuses packets (`table_exhaustion`). |
+| `max_entries` | Receiver entries for this association (positive): packets being reassembled at the same time (each owns a `max_frame_len + 9` byte buffer). Shipped default 1024. When it is too small the receiver refuses new packets (`table_exhaustion`). |
+| `max_retired` | Retirement records for this association (positive): identifiers kept for R after a packet finishes so that late fragments are recognised. Records are small (about 24 bytes plus an 8-byte hash slot, two slots per record). It must be at least (expected fragmented packet rate x R) plus `max_entries`; for example about 63,000 packets per second at 760 Mbit/s with R = 100 ms needs about 6,300. Shipped default 65536. When it is too small the receiver refuses new packets (`table_exhaustion`). |
 | `max_bytes` | Retained bytes for this association (positive). |
 | `orphan_budget` | Orphan entries for this association. |
 | `dtag_start` | First DTag value; below 2^32 (compact) or 2^60 (extended). |
@@ -105,7 +106,7 @@ The daemon refuses to start, naming the section and key, when any of these fails
 - `fr_rule_id` and `cd_rule_id` are not prefix-free;
 - the transmit configuration is invalid: `pmtu` must be at least `h_ip` + 8 + All-1 header + 9, `max_fragments`
   must be 2 to 8, and a maximum-length frame (+ 9 bytes of SCHC prefix) must fit in `max_fragments` fragments;
-- `S`, `I`, `R`, `Q`, `counters_interval`, `max_entries` and `max_bytes` are positive;
+- `S`, `I`, `R`, `Q`, `counters_interval`, `max_entries`, `max_retired` and `max_bytes` are positive;
 - with W = S + B: R >= W; for `receiver = tolerant`, Delta >= W;
 - with D = max(W + I, Delta): Q > B + D + R;
 - the DTag allocator accepts `dtag_start`, `dtag_rate`, `dtag_burst`: the identifier space (2^32 or 2^60) must hold

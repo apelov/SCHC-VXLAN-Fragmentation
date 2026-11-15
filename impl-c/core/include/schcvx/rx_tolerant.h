@@ -13,13 +13,17 @@ struct schcvx_rx_tolerant_cfg {
 struct schcvx_rx_tolerant_piece { size_t offset, len; uint8_t fcn; bool present; };
 struct schcvx_rx_tolerant_entry {
     uint64_t dtag, deadline, inactivity; size_t len, tile_len;
-    uint32_t rcs; uint8_t rule_id, n; bool used, first, orphan;
+    uint32_t rcs, dprev, dnext, iprev, inext; uint8_t rule_id, n; bool used, first, orphan;
     struct schcvx_rx_tolerant_piece pieces[8];
 };
 struct schcvx_rx_tolerant {
     struct schcvx_rx_tolerant_cfg cfg; struct schcvx_retire retire;
     struct schcvx_rx_tolerant_entry *entries; uint8_t *packets, *assembly;
     size_t retained, orphans; struct schcvx_counters *counters;
+    /* Lookup index, free-slot stack and two active lists: by absolute deadline (created + Delta)
+     * and by inactivity expiry (last regular fragment + I); both sorted, oldest first. */
+    struct schcvx_hslot *hash; size_t hash_slots; uint32_t *free_stack; size_t free_top;
+    uint32_t dhead, dtail, ihead, itail;
 };
 /* Buffer aligned for max_align_t; zero means invalid configuration or overflow. */
 size_t schcvx_rx_tolerant_bytes(const struct schcvx_rx_tolerant_cfg *cfg);

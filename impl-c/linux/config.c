@@ -13,7 +13,7 @@ static int number(const char *s, uint64_t *v) { char *e; unsigned long long n; i
 static int ip(const char *s) { unsigned a,b,c,d; char x; return sscanf(s,"%u.%u.%u.%u%c",&a,&b,&c,&d,&x)==4 && a<256 && b<256 && c<256 && d<256; }
 static int copy(char *dst,size_t n,const char *s) { if (!*s || strlen(s)>=n) return -1; memcpy(dst,s,strlen(s)+1); return 0; }
 static int fail(char *e,size_t n,const char *section,const char *key,const char *why) { if(n) snprintf(e,n,"%s: %s: %s",section,key,why); return -1; }
-static const char *const keys[]={"local_ip","peer_ip","udp_port","src_port","variant","fr_rule_id","cd_rule_id","vnis","tap","pmtu","h_ip","max_frame_len","max_fragments","receiver","S","B","I","Delta","R","Q","max_entries","max_bytes","orphan_budget","dtag_start","counters_file","counters_interval","dtag_rate","dtag_burst"};
+static const char *const keys[]={"local_ip","peer_ip","udp_port","src_port","variant","fr_rule_id","cd_rule_id","vnis","tap","pmtu","h_ip","max_frame_len","max_fragments","receiver","S","B","I","Delta","R","Q","max_entries","max_bytes","orphan_budget","dtag_start","counters_file","counters_interval","dtag_rate","dtag_burst","max_retired"};
 static const char *const globals[]={"max_entries","max_bytes","orphan_budget"};
 static int find(const char *s,const char *const *list,size_t n) { size_t i; for(i=0;i<n;i++) if(!strcmp(s,list[i])) return (int)i; return -1; }
 static int value(struct schcvx_config_assoc *a,int k,char *v) {
@@ -34,6 +34,7 @@ static int value(struct schcvx_config_assoc *a,int k,char *v) {
  case 14: a->S=x; break; case 15: a->B=x; break; case 16: a->I=x; break; case 17: a->Delta=x; break; case 18: a->R=x; break; case 19: a->Q=x; break;
  case 20: case 21: case 22: if(x>SIZE_MAX) return -1; if(k==20) a->max_entries=(size_t)x; else if(k==21) a->max_bytes=(size_t)x; else a->orphan_budget=(size_t)x; break;
  case 23: a->dtag_start=x; break; case 25: a->counters_interval=x; break;
+ case 28: if(x>SIZE_MAX) return -1; a->max_retired=(size_t)x; break;
  case 26: case 27: if(!x || x>UINT32_MAX) return -1; if(k==26) a->dtag_rate=(uint32_t)x; else a->dtag_burst=(uint32_t)x; break;
  default: return -1; } return 0;
 }
@@ -55,7 +56,7 @@ int schcvx_config_load(const char *path,struct schcvx_config *out,char *error,si
  for(j=0;j<sizeof keys/sizeof keys[0];j++) if(!(masks[i]&(UINT64_C(1)<<j))) return fail(error,error_size,section,keys[j],"missing key");
  if(schcvx_wire_config_check(&w)) return fail(error,error_size,section,"fr_rule_id","not prefix-free");
  if(schcvx_tx_config_check(&a->tx)) return fail(error,error_size,section,"pmtu/max_frame_len/max_fragments","invalid transmit configuration");
- if(!a->S || !a->I || !a->R || !a->Q || !a->counters_interval || !a->max_entries || !a->max_bytes) return fail(error,error_size,section,"timers/limits","must be positive");
+ if(!a->S || !a->I || !a->R || !a->Q || !a->counters_interval || !a->max_entries || !a->max_retired || !a->max_bytes) return fail(error,error_size,section,"timers/limits","must be positive");
  if(UINT64_MAX-a->S<a->B) return fail(error,error_size,section,"S/B","overflow");
  W=a->S+a->B;
  if(a->R<W) return fail(error,error_size,section,"R","must be >= S + B");

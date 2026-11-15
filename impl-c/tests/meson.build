@@ -45,5 +45,8 @@ test('config', config_exe, args: [meson.project_source_root() / 'linux/schcvx.co
 daemon_offline_exe = executable('test_daemon_offline', 'test_daemon_offline.c', dependencies: schcvx_daemon_dep)
 test('daemon-offline', daemon_offline_exe, args: [meson.project_source_root() / 'linux/schcvx.conf.example'])
 
+rx_scale_exe = executable('test_rx_scale', 'test_rx_scale.c', dependencies: schcvx_core_dep)
+test('rx_scale', rx_scale_exe, timeout: 60)
+
 test('docs', find_program('bash'),
   args: [files('check_docs.sh'), meson.project_source_root() / 'linux/config.c', meson.project_source_root() / 'README.md'])

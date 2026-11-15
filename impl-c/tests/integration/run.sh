@@ -107,6 +107,7 @@ Delta = 20000000
 R = 100000000
 Q = 200000000
 max_entries = 1024
+max_retired = 65536
 max_bytes = 4194304
 orphan_budget = 256
 dtag_start = 0
