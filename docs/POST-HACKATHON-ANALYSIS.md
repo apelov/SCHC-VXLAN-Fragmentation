@@ -67,3 +67,13 @@ Scope: the work of 2026-11-14 and 2026-11-15 in this repository, as seen from th
 2. Add: tool-readiness checks, a written model-routing policy, Linux CI, shared receiver scenarios, a performance checklist.
 3. Drop for drafting work: the sealed multi-agent pipeline; use small delegated packages with orchestrator validation instead (what actually produced the C implementation).
 4. Protect independence deliberately: assign different model families per implementation and per reviewer, and record it in the interop plan.
+
+## 7. Conclusion
+
+In two days the project went from a Markdown design to a Standards Track -00 draft for the SCHC WG and two independently written implementations, C and Rust, that interoperate over a real 1280-byte underlay. Unfragmented and fragmented traffic flows computer to computer at 530–730 Mbit/s TCP. Along the way the design itself improved: it moved from a new fragmentation mode to a SCHC No-ACK profile over the VXLAN payload, which is a much easier proposition for the working group.
+
+The AI-assisted approach delivered most when it was disciplined about the contract and loose about the machinery. The decisive elements were a draft that stays the single authority, explicit Open Issues instead of invented behaviour, shared vectors with an executable checker, an independent dissector, review by a different model, and verification on the real target. Those caught every significant defect before it reached Andrii: wrong arithmetic, GCC-only build failures, checksum offload, oversized-fragment handling, CPU-bound receive paths.
+
+The heavy machinery delivered least. The sealed multi-agent pipeline produced a complete first draft, but the design was frozen too early and its environment problems cost more time than its automation saved. Switching models and tools mid-stream, often under token or account limits, was the largest source of lost time and of mistakes. That included two of my own: choosing a worker model the user had not asked for, and a wrong performance diagnosis made without CPU measurements.
+
+For the next hackathon, keep the contract-first discipline. Add a short readiness and routing step at the start: check every tool, decide which model does what, and set up Linux CI. Replace the sealed pipeline with small delegated packages that the orchestrator validates on the target system. That is the workflow that actually built the C implementation, and it scales to the open work: reordering with tolerant receivers, a persistent NixOS deployment, IPv6 and DPDK.
