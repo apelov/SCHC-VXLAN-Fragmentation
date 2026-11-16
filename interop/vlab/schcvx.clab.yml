@@ -1,0 +1,54 @@
+# SCHC-VXLAN virtual interop lab.
+#   hostA --eth1-- vtep1 (C) --eth2 == underlay MTU 1280 == eth2-- vtep2 (Rust) --eth1-- hostB
+# RECEIVER (ordered|tolerant) is taken from the environment at deploy time.
+name: schcvx
+mgmt:
+  network: schcvx-mgmt
+  ipv4-subnet: 172.30.250.0/24
+  ipv6-subnet: 3fff:172:30:250::/64
+topology:
+  defaults:
+    kind: linux
+  nodes:
+    hostA:
+      image: schcvx-lab-host:latest
+      exec:
+        - ip link set eth1 up
+        - ip addr add 192.168.44.2/24 dev eth1
+    hostB:
+      image: schcvx-lab-host:latest
+      exec:
+        - ip link set eth1 up
+        - ip addr add 192.168.44.3/24 dev eth1
+    vtep1:
+      image: schcvx-lab-c:latest
+      env:
+        RECEIVER: ${RECEIVER:-ordered}
+        LOCAL_IP: 192.168.11.2
+        PEER_IP: 192.168.11.1
+      cap-add: [NET_ADMIN, NET_RAW]
+      devices: [/dev/net/tun:/dev/net/tun]
+    vtep2:
+      image: schcvx-lab-rust:latest
+      env:
+        RECEIVER: ${RECEIVER:-ordered}
+        LOCAL_IP: 192.168.11.1
+        PEER_IP: 192.168.11.2
+      cap-add: [NET_ADMIN, NET_RAW]
+      devices: [/dev/net/tun:/dev/net/tun]
+  links:
+    - type: veth
+      endpoints:
+        - {node: hostA, interface: eth1}
+        - {node: vtep1, interface: eth1}
+      mtu: 1500
+    - type: veth
+      endpoints:
+        - {node: vtep1, interface: eth2}
+        - {node: vtep2, interface: eth2}
+      mtu: 1280
+    - type: veth
+      endpoints:
+        - {node: vtep2, interface: eth1}
+        - {node: hostB, interface: eth1}
+      mtu: 1500
